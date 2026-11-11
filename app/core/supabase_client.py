@@ -1,19 +1,13 @@
-
 from supabase import Client, create_client
+from app.core.config import settings
 
-from app.core.config import (
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    validate_settings,
-)
-
-validate_settings()
+# Validate settings at startup
+settings.validate()
 
 supabase: Client = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
+    settings.SUPABASE_URL,
+    settings.SUPABASE_KEY
 )
-
 
 def get_supabase() -> Client:
     """Return the shared Supabase client."""
