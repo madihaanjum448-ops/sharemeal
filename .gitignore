@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+# Node.js
+node_modules/
+dist/
+
+# Environment variables
+.env.*
+!.env.example

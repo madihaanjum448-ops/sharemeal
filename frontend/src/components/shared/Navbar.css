@@ -1,0 +1,32 @@
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 6%;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+header h2 {
+  color: #16804a;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+header nav {
+  display: flex;
+  gap: 30px;
+}
+
+header nav a {
+  text-decoration: none;
+  color: #555;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+header nav a.active {
+  color: #16804a;
+  font-weight: 700;
+}
