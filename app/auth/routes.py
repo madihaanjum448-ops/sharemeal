@@ -1,43 +1,57 @@
 
-from fastapi import APIRouter, HTTPException
+import logging
+
+from fastapi import APIRouter, HTTPException, Request
 
 from app.auth.schemas import SendOTPRequest, VerifyOTPRequest
 from app.core.auth_client import auth_supabase
+from app.core.config import settings
+from app.core.rate_limit import enforce_otp_send_limit
 from app.core.supabase_client import get_supabase
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger("sharemeal.auth")
 
 
 @router.post("/send-otp")
-def send_otp(request: SendOTPRequest):
+def send_otp(request: SendOTPRequest, http_request: Request):
     email = request.email.strip().lower()
+    ip = http_request.client.host if http_request.client else "unknown"
+
+    enforce_otp_send_limit(
+        f"{ip}:{email}",
+        settings.OTP_MAX_SENDS_PER_WINDOW,
+        settings.OTP_RATE_LIMIT_WINDOW_SECONDS,
+    )
 
     try:
-        response = auth_supabase.auth.sign_in_with_otp({
+        auth_supabase.auth.sign_in_with_otp({
             "email": email,
-            "options": {
-                "should_create_user": True,
-            },
+            "options": {"should_create_user": True},
         })
+        return {"message": "Verification code sent. Please check your email."}
 
-        print("OTP request response:", response)
-
-        return {
-            "message": "Verification code sent. Please check your email."
-        }
-
-    except Exception as error:
-        print("SUPABASE OTP ERROR:", repr(error))
-
+    except Exception as exc:
+        logger.exception(
+            "Supabase OTP delivery failed: %s",
+            type(exc).__name__,
+            )
         raise HTTPException(
-            status_code=400,
-            detail="Could not send OTP. Check the server terminal.",
-        )
+            status_code=503,
+            detail="Could not send verification code. Please try again later."
+            )
 
 
 @router.post("/verify-otp")
-def verify_otp(request: VerifyOTPRequest):
+def verify_otp(request: VerifyOTPRequest, http_request: Request):
     email = request.email.strip().lower()
+    ip = http_request.client.host if http_request.client else "unknown"
+
+    enforce_otp_send_limit(
+        f"verify:{ip}:{email}",
+        5,
+        settings.OTP_RATE_LIMIT_WINDOW_SECONDS,
+    )
 
     try:
         verification = auth_supabase.auth.verify_otp({
@@ -46,20 +60,35 @@ def verify_otp(request: VerifyOTPRequest):
             "type": "email",
         })
 
-        user = verification.user
-        session = verification.session
+        user, session = verification.user, verification.session
 
         if not user or not session:
             raise HTTPException(
                 status_code=401,
-                detail="OTP verification failed.",
+                detail="OTP verification failed",
             )
 
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Supabase OTP verification failed: %s",
+            type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=401,
+            detail="OTP verification failed",
+        )
+
+    try:
         client = get_supabase()
 
         existing = (
             client.table("user_profiles")
-            .select("id, full_name, role, organization_name, is_verified")
+            .select(
+                "id, full_name, role, organization_name, "
+                "is_verified, approval_status"
+            )
             .eq("id", user.id)
             .limit(1)
             .execute()
@@ -69,27 +98,38 @@ def verify_otp(request: VerifyOTPRequest):
             profile = existing.data[0]
 
         else:
-            profile_data = {
+            if not request.full_name or not request.role:
+                raise HTTPException(
+                    status_code=422,
+                    detail="full_name and role are required for a new profile",
+                )
+
+            role = request.role
+
+            payload = {
                 "id": user.id,
                 "full_name": request.full_name.strip(),
-                "role": request.role,
+                "role": role,
                 "organization_name": (
                     request.organization_name.strip()
                     if request.organization_name
                     else None
                 ),
+                "approval_status": (
+                    "pending" if role == "receiver" else None
+                ),
             }
 
             created = (
                 client.table("user_profiles")
-                .insert(profile_data)
+                .insert(payload)
                 .execute()
             )
 
             if not created.data:
                 raise HTTPException(
                     status_code=500,
-                    detail="Account verified, but profile creation failed.",
+                    detail="Profile creation failed",
                 )
 
             profile = created.data[0]
@@ -111,11 +151,9 @@ def verify_otp(request: VerifyOTPRequest):
 
     except HTTPException:
         raise
-
-    except Exception as error:
-        print("SUPABASE VERIFY OTP ERROR:", repr(error))
-
+    except Exception:
+        logger.exception("User profile lookup or creation failed")
         raise HTTPException(
-            status_code=400,
-            detail="OTP verification or account setup failed. Check the server terminal.",
+            status_code=500,
+            detail="Account setup failed. Please try again later.",
         )

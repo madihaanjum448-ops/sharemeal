@@ -1,3 +1,5 @@
+
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -6,6 +8,8 @@ from pydantic import BaseModel
 
 from app.core.auth import get_current_verified_receiver
 from app.core.supabase_client import get_supabase
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/claims", tags=["Claims"])
 
@@ -33,22 +37,51 @@ def create_claim(
         data = response.data
 
         if not data or not data.get("success"):
-            error_msg = data.get("message", "Listing unavailable") if data else "Claim rejected"
-            
-            if "already claimed" in error_msg.lower() or "active claim" in error_msg.lower():
+            error_msg = (
+                data.get("message", "Listing unavailable")
+                if data else "Claim rejected"
+            )
+
+            code = (
+                str(data.get("code", "")).upper()
+                if isinstance(data, dict) else ""
+            )
+
+            if (
+                code == "CONFLICT"
+                or "already claimed" in error_msg.lower()
+                or "active claim" in error_msg.lower()
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="This listing has already been claimed by another receiver.",
                 )
-            if "expired" in error_msg.lower() or "safe_until" in error_msg.lower():
+
+            if (
+                code == "EXPIRED"
+                or "expired" in error_msg.lower()
+                or "safe_until" in error_msg.lower()
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_410_GONE,
                     detail="This food listing has expired and can no longer be claimed.",
                 )
-            
+
+            if code == "FORBIDDEN":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Verified receiver access required",
+                )
+
+            if code == "NOT_FOUND":
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Listing not found",
+                )
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=error_msg,
+                detail="Listing cannot be claimed in its current state",
             )
 
         return {
@@ -58,21 +91,22 @@ def create_claim(
 
     except HTTPException:
         raise
-    except Exception as error:
-        err_str = str(error).lower()
-        if "409" in err_str or "unique constraint" in err_str or "lock" in err_str:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Simultaneous claim detected. Another organisation successfully claimed this food first.",
-            )
+
+    except Exception as exc:
+        logger.exception(
+            "Supabase claim_food_listing failed: %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not process claim request",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claim service temporarily unavailable",
         )
 
 
 @router.get("/my")
-def get_my_claims(user=Depends(get_current_verified_receiver)):
+def get_my_claims(
+    user=Depends(get_current_verified_receiver),
+):
     try:
         client = get_supabase()
 
@@ -91,26 +125,36 @@ def get_my_claims(user=Depends(get_current_verified_receiver)):
                 client.table("food_listings")
                 .select(
                     "id, title, description, food_category, quantity, "
-                    "servings, safe_until, status, created_at, pickup_address, latitude, longitude"
+                    "servings, safe_until, status, created_at, "
+                    "pickup_address, latitude, longitude"
                 )
                 .eq("id", claim["listing_id"])
                 .limit(1)
                 .execute()
             )
 
-            listing = listing_response.data[0] if listing_response.data else None
+            listing = (
+                listing_response.data[0]
+                if listing_response.data else None
+            )
 
             if listing:
                 expiry = datetime.fromisoformat(
                     claim["expires_at"].replace("Z", "+00:00")
                 )
 
-                is_active_or_completed = (
-                    claim["status"] in ["active", "completed", "picked_up"]
-                    and (claim["status"] != "active" or expiry > datetime.now(timezone.utc))
+                is_active = (
+                    claim["status"] == "active"
+                    and expiry > datetime.now(timezone.utc)
                 )
 
-                if not is_active_or_completed:
+                listing_safe = (
+                    datetime.fromisoformat(
+                        listing["safe_until"].replace("Z", "+00:00")
+                    ) > datetime.now(timezone.utc)
+                )
+
+                if not (is_active and listing_safe):
                     listing.pop("pickup_address", None)
                     listing.pop("latitude", None)
                     listing.pop("longitude", None)
@@ -125,10 +169,14 @@ def get_my_claims(user=Depends(get_current_verified_receiver)):
             "claims": results,
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.exception(
+            "Could not retrieve receiver claims: %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not retrieve your claims",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claim service temporarily unavailable",
         )
 
 
@@ -150,10 +198,21 @@ def cancel_claim(
 
         result = response.data
 
-        if not result:
+        if not result or not result.get("success"):
+            code = (
+                result.get("code")
+                if isinstance(result, dict) else None
+            )
+
+            http_code = (
+                status.HTTP_404_NOT_FOUND if code == "NOT_FOUND"
+                else status.HTTP_403_FORBIDDEN if code == "FORBIDDEN"
+                else status.HTTP_409_CONFLICT
+            )
+
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not cancel claim.",
+                status_code=http_code,
+                detail="Claim cannot be cancelled in its current state",
             )
 
         if result.get("claim_status") == "expired":
@@ -169,8 +228,13 @@ def cancel_claim(
 
     except HTTPException:
         raise
-    except Exception:
+
+    except Exception as exc:
+        logger.exception(
+            "Supabase cancel_food_claim failed: %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not cancel this claim. It may already be completed or expired.",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claim service temporarily unavailable",
         )
