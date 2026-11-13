@@ -2,6 +2,7 @@ import HygieneChecklist from "../../components/shared/HygieneChecklist";
 import FoodCategory from "../../components/shared/FoodCategory";
 import SafeUntil from "../../components/shared/SafeUntil";
 import DonorPostForm from "./DonorPostForm";
+import PhotoUpload from "../../components/shared/PhotoUpload";
 function DonorHome() {
   return (
     <div>
@@ -10,6 +11,7 @@ function DonorHome() {
       <FoodCategory />
       <SafeUntil />
       <DonorPostForm />
+      <PhotoUpload />
     </div>
   );
 }
