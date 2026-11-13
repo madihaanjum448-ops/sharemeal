@@ -1,6 +1,7 @@
 import HygieneChecklist from "../../components/shared/HygieneChecklist";
 import FoodCategory from "../../components/shared/FoodCategory";
 import SafeUntil from "../../components/shared/SafeUntil";
+import DonorPostForm from "./DonorPostForm";
 function DonorHome() {
   return (
     <div>
@@ -8,6 +9,7 @@ function DonorHome() {
       <HygieneChecklist />
       <FoodCategory />
       <SafeUntil />
+      <DonorPostForm />
     </div>
   );
 }
