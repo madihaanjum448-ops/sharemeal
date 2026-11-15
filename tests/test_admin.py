@@ -16,6 +16,7 @@ def profile(pid, role="receiver", status="pending", created="2026-11-10"):
         "is_verified": False, "full_name": "Name " + pid,
         "organization_name": "Org " + pid, "phone": "9990001111",
         "registration_photo": "photos/" + pid + ".jpg", "created_at": created,
+        "accepts_food_category": "both",
     }
 
 
@@ -96,3 +97,23 @@ def test_input_profile_not_modified():
     snapshot = dict(original)
     decide_receiver(original, APPROVE, ADMIN, NOW)
     assert original == snapshot
+
+
+def test_approve_requires_food_category():
+    from app.admin.service import CATEGORY_REQUIRED
+    p = profile("a")
+    p["accepts_food_category"] = None
+    updated, audit, result = decide_receiver(p, APPROVE, ADMIN, NOW)
+    assert result == CATEGORY_REQUIRED and audit is None and updated == p
+
+
+def test_reject_does_not_need_food_category():
+    p = profile("a")
+    p["accepts_food_category"] = None
+    _, _, result = decide_receiver(p, REJECT, ADMIN, NOW, reason="documents unclear")
+    assert result == OK
+
+
+def test_pending_list_shows_chosen_category():
+    summary = pending_applications([profile("a")])[0]
+    assert summary["accepts_food_category"] == "both"
