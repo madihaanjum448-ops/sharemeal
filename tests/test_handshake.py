@@ -68,3 +68,24 @@ def test_input_record_not_modified():
     record, _ = fresh()
     verify_handshake(record, "0000", SECRET, NOW)
     assert record.attempts == 0
+
+
+def test_derived_code_is_four_digits_and_repeatable():
+    from app.handshake.service import derive_code
+    first = derive_code("claim-1", SECRET)
+    assert len(first) == 4 and first.isdigit()
+    assert first == derive_code("claim-1", SECRET)
+
+
+def test_derived_code_differs_by_claim_and_secret():
+    from app.handshake.service import derive_code
+    assert derive_code("claim-1", SECRET) != derive_code("claim-2", SECRET)
+    assert derive_code("claim-1", SECRET) != derive_code("claim-1", "other-secret")
+
+
+def test_default_code_matches_derived_code():
+    from app.handshake.service import derive_code
+    record, code = start_handshake("claim-1", SECRET, LATER)
+    assert code == derive_code("claim-1", SECRET)
+    _, result = verify_handshake(record, code, SECRET, NOW)
+    assert result == OK

@@ -41,7 +41,7 @@ def start_handshake(
     claim_id: str, secret: str, expires_at: datetime, code: Optional[str] = None
 ) -> Tuple[Handshake, str]:
     """Return (record to store, plain code to show the donor once)."""
-    code = code or generate_code()
+    code = code or derive_code(claim_id, secret)
     record = Handshake(claim_id, hash_code(code, claim_id, secret), expires_at)
     return record, code
 
@@ -60,3 +60,14 @@ def verify_handshake(
     if hmac.compare_digest(candidate, handshake.code_hash):
         return replace(handshake, verified_at=now), OK
     return replace(handshake, attempts=handshake.attempts + 1), WRONG
+
+
+def derive_code(claim_id: str, secret: str) -> str:
+    """Recompute a claim's 4-digit code from the server secret.
+
+    Lets the backend show the code again to the authorised donor without
+    storing it. Needs HANDSHAKE_SECRET kept private, same as the hash.
+    """
+    message = ("code:%s" % claim_id).encode("utf-8")
+    digest = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
+    return "%04d" % (int.from_bytes(digest[:4], "big") % 10000)
