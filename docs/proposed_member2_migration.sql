@@ -18,7 +18,8 @@ ALTER TABLE public.user_profiles
 
 UPDATE public.user_profiles
    SET accepts_food_category = 'both'
- WHERE role = 'receiver' AND accepts_food_category IS NULL;
+ WHERE role = 'receiver' AND approval_status = 'approved'
+   AND accepts_food_category IS NULL;   -- pending receivers must choose
 
 CREATE INDEX IF NOT EXISTS idx_user_profiles_matchable_receivers
   ON public.user_profiles (accepts_food_category)

@@ -15,10 +15,12 @@ NOT_RECEIVER = "not_receiver"
 ALREADY_DECIDED = "already_decided"
 INVALID_DECISION = "invalid_decision"
 REASON_REQUIRED = "reason_required"
+CATEGORY_REQUIRED = "category_required"
 
 # Only these fields are shown in the pending list (no phone, no address).
 SUMMARY_FIELDS = (
-    "id", "full_name", "organization_name", "registration_photo", "created_at",
+    "id", "full_name", "organization_name", "registration_photo",
+    "accepts_food_category", "created_at",
 )
 
 
@@ -56,6 +58,8 @@ def decide_receiver(
         return profile, None, ALREADY_DECIDED
     if decision == REJECT and not (reason and reason.strip()):
         return profile, None, REASON_REQUIRED
+    if decision == APPROVE and not profile.get("accepts_food_category"):
+        return profile, None, CATEGORY_REQUIRED
 
     approved = decision == APPROVE
     updated = dict(profile)
