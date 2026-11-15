@@ -31,3 +31,11 @@ class VerifyOTPRequest(BaseModel):
         default=None,
         max_length=160,
     )
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(
+        ...,
+        min_length=1,
+        description="Supabase session refresh token",
+    )

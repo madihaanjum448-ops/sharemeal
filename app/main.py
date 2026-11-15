@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
 from app.auth.routes import router as auth_router
 from app.claims.routes import router as claims_router
 from app.core.auth import get_current_admin
@@ -43,6 +44,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ShareMeal API", description="Backend API for ShareMeal", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID", "Date"],
+)
 
 
 @app.middleware("http")

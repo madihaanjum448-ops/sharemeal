@@ -19,6 +19,7 @@ class ClaimRequest(BaseModel):
 
 
 @router.post("/", status_code=status.HTTP_200_OK)
+@router.post("/create", status_code=status.HTTP_200_OK)
 def create_claim(
     request: ClaimRequest,
     user=Depends(get_current_verified_receiver),

@@ -13,6 +13,15 @@ It acts as the common integration reference for the backend, donor frontend, rec
 
 **Important:** Examples containing UUIDs, access tokens and timestamps are illustrative. Actual values are returned by the backend.
 
+### 1.1 Cross-Origin Resource Sharing (CORS)
+
+The backend is configured with FastAPI `CORSMiddleware` supporting browser clients (including Member 4 receiver frontend):
+- **Allowed Origins:** `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`, `http://127.0.0.1:3000`
+- **Allow Credentials:** `true`
+- **Allowed Methods:** `*` (`GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`, `PATCH`)
+- **Allowed Headers:** `*` (`Content-Type`, `Authorization`, `X-Request-ID`, `Accept`, etc.)
+- **Exposed Headers:** `X-Request-ID`, `Date` (exposing `Date` enables frontend clock-skew correction)
+
 ## 2. Authentication
 
 Protected endpoints require the following header:
@@ -124,6 +133,96 @@ Approved receivers require both `approval_status = approved` and `is_verified = 
 
 Donor profiles have `approval_status = null`.
 
+### 2.4 Get Current User Profile
+
+- **Method:** GET
+- **Endpoint:** `/auth/me`
+- **Access:** Authenticated user (`Bearer <access_token>`)
+
+Retrieves the authenticated user's profile information from the Supabase `user_profiles` table. The response provides profile attributes at the top level, as well as mirrored inside nested `user` and `profile` objects for frontend compatibility.
+
+**Request headers:**
+
+```http
+Authorization: Bearer <access_token>
+```
+
+**Success — 200 OK:**
+
+```json
+{
+  "id": "user-uuid",
+  "email": "user@example.com",
+  "full_name": "Priya Sharma",
+  "role": "receiver",
+  "organization_name": "Hope Animal Shelter",
+  "is_verified": true,
+  "approval_status": "approved",
+  "created_at": "2026-11-14T10:00:00Z",
+  "user": {
+    "id": "user-uuid",
+    "email": "user@example.com",
+    "full_name": "Priya Sharma",
+    "role": "receiver",
+    "organization_name": "Hope Animal Shelter",
+    "is_verified": true,
+    "approval_status": "approved",
+    "created_at": "2026-11-14T10:00:00Z"
+  },
+  "profile": {
+    "id": "user-uuid",
+    "email": "user@example.com",
+    "full_name": "Priya Sharma",
+    "role": "receiver",
+    "organization_name": "Hope Animal Shelter",
+    "is_verified": true,
+    "approval_status": "approved",
+    "created_at": "2026-11-14T10:00:00Z"
+  }
+}
+```
+
+**Possible errors:**
+- `401` — Missing or invalid authentication token.
+- `404` — Profile not found.
+- `503` — Authentication service unavailable.
+
+### 2.5 Refresh Session Token
+
+- **Method:** POST
+- **Endpoint:** `/auth/refresh`
+- **Access:** Public
+
+Refreshes an active or expiring Supabase session using an existing refresh token. Returns top-level tokens (`access_token`, `refresh_token`), `message`, `token_type`, `expires_in`, and the `user` object.
+
+**Request body:**
+
+```json
+{
+  "refresh_token": "<refresh-token>"
+}
+```
+
+**Success — 200 OK:**
+
+```json
+{
+  "message": "Token refreshed successfully",
+  "access_token": "<new-access-token>",
+  "refresh_token": "<new-refresh-token>",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "user": {
+    "id": "user-uuid",
+    "email": "user@example.com"
+  }
+}
+```
+
+**Possible errors:**
+- `401` — Invalid or expired refresh token.
+- `422` — Validation error (e.g. empty refresh token).
+
 ## 3. Food Listings APIs
 
 ### 3.1 Create Food Listing
@@ -208,25 +307,25 @@ The backend assigns `donor_id` from the authenticated user and sets listing `sta
 
 **Query parameters:**
 
-| Parameter | Default | Validation |
-|---|---|---|
-| category | None | `human` or `animal` |
-| limit | 20 | 1–100 |
-| offset | 0 | 0–10000 |
-| latitude | None | -90 to 90 |
-| longitude | None | -180 to 180 |
-| radius_km | None | Greater than 0, maximum 100 |
+| Parameter | Aliases | Default | Validation |
+|---|---|---|---|
+| `food_category` | `category` | None | `human` or `animal` |
+| `limit` | - | 20 | 1–100 |
+| `offset` | - | 0 | 0–10000 |
+| `latitude` | `lat` | None | -90 to 90 |
+| `longitude` | `lng` | None | -180 to 180 |
+| `radius_km` | - | None | Greater than 0, maximum 100 |
 
 **Example:**
 
 ```http
-GET /listings/?category=human&limit=20&offset=0
+GET /listings/?food_category=human&limit=20&offset=0
 ```
 
 **Location-filtered example:**
 
 ```http
-GET /listings/?category=human&latitude=13.1007&longitude=77.5963&radius_km=10
+GET /listings/?food_category=human&latitude=13.1007&longitude=77.5963&radius_km=10
 ```
 
 When location filtering is used, latitude, longitude and radius must all be supplied.
@@ -246,13 +345,16 @@ When location filtering is used, latitude, longitude and radius must all be supp
       "servings": 20,
       "safe_until": "2026-11-13T18:00:00+05:30",
       "status": "available",
+      "approx_latitude": 13.10,
+      "approx_longitude": 77.60,
+      "distance_km": 0.42,
       "created_at": "2026-11-12T10:00:00+00:00"
     }
   ]
 }
 ```
 
-Exact pickup addresses and GPS coordinates are excluded from browse results.
+Exact pickup addresses and GPS coordinates are strictly excluded from browse results. `approx_latitude` and `approx_longitude` are rounded to 2 decimal places (~1.1 km precision) to allow neighborhood map pin rendering without exposing exact physical locations.
 
 **Possible errors:**
 - `422` — Invalid query parameters or incomplete location filter.
@@ -404,11 +506,12 @@ No request body is required.
 
 ## 5. Contract Status
 
-This document currently covers Authentication and Food Listings.
+This document covers implemented and tested endpoints for Authentication, Food Listings, Claims, and Admin Receiver Verification.
 
-Claims, Admin, Pickup/Handshake, Notifications and Impact endpoints will be added after their route implementations and team integration requirements are verified.
+Future endpoints for QR/pickup handshake verification and impact analytics will be documented when implemented in future sprints (owned by Member 2).
 
-**Document status:** Draft — pending team review and endpoint testing.
+**Document status:** Active integration contract for Member 1 backend, Member 4 receiver frontend, donor workflows, and administrator operations.
+
 ## 6. Claims APIs
 
 Claims allow approved receiver organisations to reserve available food listings.
@@ -420,7 +523,7 @@ All claims endpoints require an authenticated, approved and verified receiver.
 ### 6.1 Create a Food Claim
 
 - **Method:** POST
-- **Endpoint:** `/claims/`
+- **Endpoint:** `/claims/` (Alias supported: `/claims/create`)
 - **Access:** Approved receiver only
 
 **Request headers:**

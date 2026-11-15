@@ -36,6 +36,9 @@ class FoodListingPublicResponse(BaseModel):
     safe_until: datetime
     status: str
     created_at: datetime
+    approx_latitude: Optional[float] = None
+    approx_longitude: Optional[float] = None
+    distance_km: Optional[float] = None
 
 
 class FoodListingDetailResponse(FoodListingPublicResponse):

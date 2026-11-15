@@ -14,7 +14,7 @@ router = APIRouter(prefix="/listings", tags=["Food Listings"])
 
 PUBLIC_FIELDS = (
     "id, title, description, food_category, quantity, "
-    "servings, safe_until, status, created_at"
+    "servings, safe_until, status, created_at, latitude, longitude"
 )
 
 PRIVATE_FIELDS = (
@@ -67,14 +67,40 @@ def get_available_listings(
         default=None,
         pattern="^(human|animal)$",
     ),
+    food_category: Optional[str] = Query(
+        default=None,
+        pattern="^(human|animal)$",
+        description="Alias for category",
+    ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0, le=10000),
     latitude: Optional[float] = Query(default=None, ge=-90, le=90),
+    lat: Optional[float] = Query(default=None, ge=-90, le=90, description="Alias for latitude"),
     longitude: Optional[float] = Query(default=None, ge=-180, le=180),
+    lng: Optional[float] = Query(default=None, ge=-180, le=180, description="Alias for longitude"),
     radius_km: Optional[float] = Query(default=None, gt=0, le=100),
 ):
     client = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
+
+    # Safely resolve FastAPI Query defaults if function is called directly in Python
+    from fastapi.params import Query as QueryParam
+    def _resolve(v):
+        return None if isinstance(v, QueryParam) else v
+
+    category = _resolve(category)
+    food_category = _resolve(food_category)
+    latitude = _resolve(latitude)
+    lat = _resolve(lat)
+    longitude = _resolve(longitude)
+    lng = _resolve(lng)
+    radius_km = _resolve(radius_km)
+    limit = 20 if isinstance(limit, QueryParam) else limit
+    offset = 0 if isinstance(offset, QueryParam) else offset
+
+    selected_category = food_category or category
+    user_lat = lat if latitude is None else latitude
+    user_lng = lng if longitude is None else longitude
 
     try:
         query = (
@@ -86,16 +112,16 @@ def get_available_listings(
             .range(offset, offset + limit - 1)
         )
 
-        if category:
-            query = query.eq("food_category", category)
+        if selected_category:
+            query = query.eq("food_category", selected_category)
 
         response = query.execute()
         listings = response.data or []
 
-        if any(v is not None for v in (latitude, longitude, radius_km)):
+        if any(v is not None for v in (user_lat, user_lng, radius_km)):
             if (
-                latitude is None
-                or longitude is None
+                user_lat is None
+                or user_lng is None
                 or radius_km is None
             ):
                 raise HTTPException(
@@ -119,13 +145,13 @@ def get_available_listings(
 
             candidates = [
                 item for item in candidates
-                if not category or item["food_category"] == category
+                if not selected_category or item.get("food_category") == selected_category
             ]
 
             candidates.sort(
                 key=lambda item: distance_km(
-                    latitude,
-                    longitude,
+                    user_lat,
+                    user_lng,
                     item["latitude"],
                     item["longitude"],
                 )
@@ -134,8 +160,8 @@ def get_available_listings(
             listings = [
                 item for item in candidates
                 if distance_km(
-                    latitude,
-                    longitude,
+                    user_lat,
+                    user_lng,
                     item["latitude"],
                     item["longitude"],
                 ) <= radius_km
@@ -143,9 +169,24 @@ def get_available_listings(
 
             listings = listings[offset:offset + limit]
 
-            for item in listings:
-                item.pop("latitude", None)
-                item.pop("longitude", None)
+        # Privacy Enforcement (BR-06) & Map approximation for Receiver UI:
+        # Convert exact coordinates to approximate coordinates (~1 km resolution)
+        # Compute distance_km if user coordinates were provided; never return exact pickup_address or exact coordinates.
+        for item in listings:
+            exact_lat = item.get("latitude")
+            exact_lng = item.get("longitude")
+            item["approx_latitude"] = round(exact_lat, 2) if exact_lat is not None else None
+            item["approx_longitude"] = round(exact_lng, 2) if exact_lng is not None else None
+
+            if user_lat is not None and user_lng is not None and exact_lat is not None and exact_lng is not None:
+                item["distance_km"] = round(distance_km(user_lat, user_lng, exact_lat, exact_lng), 2)
+            else:
+                item["distance_km"] = None
+
+            item.pop("latitude", None)
+            item.pop("longitude", None)
+            item.pop("pickup_address", None)
+            item.pop("donor_id", None)
 
         return {
             "count": len(listings),

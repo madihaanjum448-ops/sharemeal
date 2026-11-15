@@ -54,6 +54,7 @@ def get_current_user(
 
     return {
         "id": user.id,
+        "email": getattr(user, "email", None),
         "role": profile["role"],
         "is_verified": bool(profile.get("is_verified", False)),
         "approval_status": profile.get("approval_status"),
