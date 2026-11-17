@@ -2,6 +2,7 @@ import asyncio
 import logging
 import uuid
 from app.admin.routes import router as admin_router
+from app.handshake.routes import router as handshake_router
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -97,6 +98,7 @@ app.include_router(listings_router)
 app.include_router(auth_router)
 app.include_router(claims_router)
 app.include_router(admin_router)
+app.include_router(handshake_router)
 
 @app.get("/")
 def root():
