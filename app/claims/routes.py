@@ -1,13 +1,14 @@
-
-import logging
+﻿import logging
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from app.core.auth import get_current_verified_receiver
+from app.core.config import settings
 from app.core.supabase_client import get_supabase
+from app.handshake.service import derive_code, hash_code
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,26 @@ def create_claim(
     client = get_supabase()
 
     try:
+        claim_id = uuid4()
+        claim_id_str = str(claim_id)
+
+        pickup_code = derive_code(
+            claim_id_str,
+            settings.HANDSHAKE_SECRET,
+        )
+        handshake_code_hash = hash_code(
+            pickup_code,
+            claim_id_str,
+            settings.HANDSHAKE_SECRET,
+        )
+
         response = client.rpc(
             "claim_food_listing",
             {
                 "p_listing_id": str(request.listing_id),
                 "p_receiver_id": user["id"],
+                "p_claim_id": claim_id_str,
+                "p_handshake_code_hash": handshake_code_hash,
             },
         ).execute()
 
@@ -78,6 +94,12 @@ def create_claim(
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Listing not found",
+                )
+
+            if code == "INVALID_HANDSHAKE":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Pickup handshake could not be created",
                 )
 
             raise HTTPException(
