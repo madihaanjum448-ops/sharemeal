@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+function toLocalDateTime(value) {
+  if (!value) return "";
 
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60000;
+
+  return new Date(date.getTime() - offset)
+    .toISOString()
+    .slice(0, 16);
+}
 function MyPosts() {
   const { authFetch } = useAuth();
   const [listings, setListings] = useState([]);
@@ -10,6 +19,9 @@ function MyPosts() {
   const [cancellingId, setCancellingId] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [editingId, setEditingId] = useState(null);
+const [savingId, setSavingId] = useState(null);
+const [editData, setEditData] = useState({});
 
   const fetchListings = useCallback(async () => {
     try {
@@ -56,7 +68,95 @@ function MyPosts() {
       setCancellingId(null);
     }
   };
+  const handleEdit = (item) => {
+  setEditingId(item.id);
 
+  setEditData({
+    title: item.title || "",
+    description: item.description || "",
+    food_category: item.food_category || "human",
+    quantity: item.quantity || "",
+    servings: item.servings ?? "",
+    pickup_address: item.pickup_address || "",
+    safe_until: toLocalDateTime(item.safe_until),
+  });
+
+  setError("");
+};
+
+const handleEditChange = (e) => {
+  const { name, value } = e.target;
+
+  setEditData((prev) => ({
+    ...prev,
+    [name]: value,
+  }));
+};
+
+const handleUpdate = async (listingId) => {
+  if (editData.title.trim().length < 3) {
+    setError("Title must be at least 3 characters.");
+    return;
+  }
+
+  if (!editData.quantity.trim()) {
+    setError("Quantity is required.");
+    return;
+  }
+
+  if (editData.pickup_address.trim().length < 5) {
+    setError("Pickup address must be at least 5 characters.");
+    return;
+  }
+
+  const safeUntilDate = new Date(editData.safe_until);
+
+  if (!editData.safe_until || isNaN(safeUntilDate.getTime()) || safeUntilDate <= new Date()) {
+    setError("Food availability time must be in the future.");
+    return;
+  }
+
+  if (editData.servings && Number(editData.servings) <= 0) {
+    setError("Servings must be greater than zero.");
+    return;
+  }
+
+  const listingData = {
+    title: editData.title.trim(),
+    description: editData.description.trim() || null,
+    food_category: editData.food_category,
+    quantity: editData.quantity.trim(),
+    servings: editData.servings ? Number(editData.servings) : null,
+    pickup_address: editData.pickup_address.trim(),
+    safe_until: safeUntilDate.toISOString(),
+  };
+
+  try {
+    setSavingId(listingId);
+    setError("");
+    setActionMessage("");
+
+    await authFetch(`/listings/${listingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(listingData),
+    });
+
+    setListings((prev) =>
+      prev.map((item) =>
+        item.id === listingId ? { ...item, ...listingData } : item
+      )
+    );
+
+    setEditingId(null);
+    setEditData({});
+    setActionMessage("Donation updated successfully.");
+  } catch (err) {
+    setError(err.message || "Failed to update donation.");
+  } finally {
+    setSavingId(null);
+  }
+};
   const filteredListings = listings.filter((item) => {
     if (filterStatus === "all") return true;
     return item.status === filterStatus;
@@ -217,9 +317,107 @@ function MyPosts() {
                     </div>
                   </div>
                 </div>
+                {editingId === item.id && (
+  <div style={{ marginTop: "20px", padding: "16px", background: "var(--bg-secondary)", borderRadius: "8px" }}>
+    <h3>Edit Donation</h3>
 
+    <label>Food Title</label>
+    <input
+      name="title"
+      value={editData.title}
+      onChange={handleEditChange}
+      minLength={3}
+      maxLength={120}
+      required
+    />
+
+    <label>Description</label>
+    <textarea
+      name="description"
+      value={editData.description}
+      onChange={handleEditChange}
+    />
+
+    <label>Food Category</label>
+    <select
+      name="food_category"
+      value={editData.food_category}
+      onChange={handleEditChange}
+    >
+      <option value="human">Human Food</option>
+      <option value="animal">Animal Feed</option>
+    </select>
+
+    <label>Quantity</label>
+    <input
+      name="quantity"
+      value={editData.quantity}
+      onChange={handleEditChange}
+      required
+    />
+
+    <label>Servings</label>
+    <input
+      type="number"
+      name="servings"
+      min="1"
+      value={editData.servings}
+      onChange={handleEditChange}
+    />
+
+    <label>Pickup Address</label>
+    <textarea
+      name="pickup_address"
+      value={editData.pickup_address}
+      onChange={handleEditChange}
+      required
+    />
+
+    <label>Food Available Until</label>
+    <input
+      type="datetime-local"
+      name="safe_until"
+      value={editData.safe_until}
+      onChange={handleEditChange}
+      required
+    />
+
+    <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+      <button
+        type="button"
+        className="btn"
+        onClick={() => handleUpdate(item.id)}
+        disabled={savingId === item.id}
+      >
+        {savingId === item.id ? "Saving..." : "Save Changes"}
+      </button>
+
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={() => {
+          setEditingId(null);
+          setEditData({});
+          setError("");
+        }}
+        disabled={savingId === item.id}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
                 <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+                  
                   {item.status === "available" && !expired && (
+  <button
+    type="button"
+    onClick={() => handleEdit(item)}
+    className="btn btn-sm"
+  >
+    Edit Donation
+  </button>
+)}
                     <button
                       type="button"
                       onClick={() => handleCancel(item.id)}
@@ -228,7 +426,7 @@ function MyPosts() {
                     >
                       {cancellingId === item.id ? "Cancelling..." : "Cancel Listing"}
                     </button>
-                  )}
+                  
                   {item.status !== "available" && (
                     <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                       Listing {item.status}
