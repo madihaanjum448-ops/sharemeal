@@ -1,8 +1,12 @@
 
 import { useState } from "react";
 import MapPicker from "../../components/shared/MapPicker";
+import { useAuth } from "../../context/AuthContext";
+import { createListing } from "../../services/listingService";
 
 function DonorPostForm() {
+  const { authFetch } = useAuth();
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -15,17 +19,19 @@ function DonorPostForm() {
     safe_until: "",
   });
 
-  // Handles normal form inputs
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
-  // Handles coordinates received from the map
   const handleLocationSelect = ({ latitude, longitude }) => {
     setFormData((prev) => ({
       ...prev,
@@ -34,12 +40,67 @@ function DonorPostForm() {
     }));
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setMessage("");
+    setError("");
+
+    if (!formData.latitude || !formData.longitude) {
+      setError("Please select a pickup location on the map.");
+      return;
+    }
+
+    if (new Date(formData.safe_until) <= new Date()) {
+      setError("Food availability time must be in the future.");
+      return;
+    }
+
+    const listingData = {
+      title: formData.title.trim(),
+      description: formData.description.trim() || null,
+      food_category: formData.food_category,
+      quantity: formData.quantity.trim(),
+      servings: formData.servings
+        ? Number(formData.servings)
+        : null,
+      pickup_address: formData.pickup_address.trim(),
+      latitude: Number(formData.latitude),
+      longitude: Number(formData.longitude),
+      safe_until: new Date(formData.safe_until).toISOString(),
+    };
+
+    try {
+      setSubmitting(true);
+
+      await createListing(listingData, authFetch);
+
+      setMessage("Food donation posted successfully!");
+
+      setFormData({
+        title: "",
+        description: "",
+        food_category: "",
+        quantity: "",
+        servings: "",
+        pickup_address: "",
+        latitude: "",
+        longitude: "",
+        safe_until: "",
+      });
+    } catch (err) {
+      setError(err.message || "Failed to post donation. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div>
       <h1>Donate Food</h1>
       <p>Share surplus food with someone who needs it.</p>
 
-      <form>
+      <form onSubmit={handleSubmit}>
         <label>Food Title</label>
         <input
           type="text"
@@ -47,6 +108,9 @@ function DonorPostForm() {
           value={formData.title}
           onChange={handleChange}
           placeholder="e.g. Fresh vegetable pulao"
+          minLength={3}
+          maxLength={120}
+          required
         />
 
         <br /><br />
@@ -66,6 +130,7 @@ function DonorPostForm() {
           name="food_category"
           value={formData.food_category}
           onChange={handleChange}
+          required
         >
           <option value="">Select category</option>
           <option value="human">Human</option>
@@ -81,6 +146,7 @@ function DonorPostForm() {
           value={formData.quantity}
           onChange={handleChange}
           placeholder="e.g. 5 kg"
+          required
         />
 
         <br /><br />
@@ -103,6 +169,8 @@ function DonorPostForm() {
           value={formData.pickup_address}
           onChange={handleChange}
           placeholder="Enter the complete pickup address..."
+          minLength={5}
+          required
         />
 
         <br /><br />
@@ -113,6 +181,7 @@ function DonorPostForm() {
           name="safe_until"
           value={formData.safe_until}
           onChange={handleChange}
+          required
         />
 
         <br /><br />
@@ -120,14 +189,15 @@ function DonorPostForm() {
         <h3>Pickup Location Coordinates</h3>
 
         <label>Latitude</label>
-       <input
-  type="number"
-  name="latitude"
-  value={formData.latitude}
-  onChange={handleChange}
-  placeholder="Enter latitude"
-  readOnly
-/>
+        <input
+          type="number"
+          name="latitude"
+          value={formData.latitude}
+          placeholder="Select location on map"
+          readOnly
+          required
+        />
+
         <br /><br />
 
         <label>Longitude</label>
@@ -135,13 +205,23 @@ function DonorPostForm() {
           type="number"
           name="longitude"
           value={formData.longitude}
-          onChange={handleChange}
-          placeholder="Enter longitude"
+          placeholder="Select location on map"
           readOnly
+          required
         />
+
         <br /><br />
 
-<MapPicker onLocationSelect={handleLocationSelect} />
+        <MapPicker onLocationSelect={handleLocationSelect} />
+
+        <br /><br />
+
+        <button type="submit" disabled={submitting}>
+          {submitting ? "Posting..." : "Post Food Donation"}
+        </button>
+
+        {message && <p style={{ color: "green" }}>{message}</p>}
+        {error && <p style={{ color: "red" }}>{error}</p>}
       </form>
 
       <div>
