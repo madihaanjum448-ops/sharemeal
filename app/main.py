@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import logging
 import uuid
 from app.admin.routes import router as admin_router
@@ -51,6 +51,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ],
@@ -117,3 +119,4 @@ def health():
 @app.post("/jobs/trigger-sweep", tags=["Admin Jobs"])
 def trigger_expiry_sweep(_admin=Depends(get_current_admin)):
     return {"message": "Expiry sweep completed", "results": run_expiry_and_timeout_sweep()}
+
