@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.core.auth import get_current_verified_receiver
 from app.core.supabase_client import get_supabase
+from app.handshake.rpc import start_handshake_or_cancel  # MEMBER2-HOOK
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,14 @@ def create_claim(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Listing cannot be claimed in its current state",
+            )
+
+        # MEMBER2-HOOK: start the pickup handshake. The code is never returned here;
+        # if it cannot be started the new claim is cancelled.
+        if not start_handshake_or_cancel(client, data.get("claim_id"), user["id"]):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Pickup verification temporarily unavailable",
             )
 
         return {

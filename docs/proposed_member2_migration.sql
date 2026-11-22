@@ -123,9 +123,14 @@ CREATE OR REPLACE FUNCTION public.confirm_claim_pickup(
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   c public.claims%ROWTYPE;
+  v_listing public.food_listings%ROWTYPE;
   v_max CONSTANT integer := 5;                         -- must match the 0-5 check above
   v_attempts integer;
 BEGIN
+  -- Lock order matches Member 1's functions (listing first, then claim) to avoid deadlocks.
+  SELECT * INTO c FROM public.claims WHERE id = p_claim_id;
+  IF NOT FOUND THEN RETURN 'not_found'; END IF;
+  SELECT * INTO v_listing FROM public.food_listings WHERE id = c.listing_id FOR UPDATE;
   SELECT * INTO c FROM public.claims WHERE id = p_claim_id FOR UPDATE;
   IF NOT FOUND OR c.receiver_id <> p_actor_id THEN RETURN 'not_found'; END IF;
   IF c.handshake_verified_at IS NOT NULL OR c.status = 'completed' THEN
@@ -133,7 +138,11 @@ BEGIN
   END IF;
   IF c.status <> 'active' THEN RETURN 'claim_not_active'; END IF;
   IF c.handshake_code_hash IS NULL THEN RETURN 'no_handshake'; END IF;
-  IF now() >= LEAST(c.expires_at, c.handshake_expires_at) THEN RETURN 'expired'; END IF;
+  -- Server clock only. The food-safety window also blocks pickup, even if the sweep has not run yet.
+  IF now() >= LEAST(c.expires_at, c.handshake_expires_at)
+     OR v_listing.safe_until <= now() THEN
+    RETURN 'expired';
+  END IF;
   IF c.handshake_locked_at IS NOT NULL OR c.handshake_attempts >= v_max THEN
     RETURN 'locked';
   END IF;
@@ -142,7 +151,8 @@ BEGIN
     UPDATE public.claims
        SET status = 'completed', handshake_verified_at = now()
      WHERE id = c.id;
-    UPDATE public.food_listings SET status = 'picked_up' WHERE id = c.listing_id;
+    UPDATE public.food_listings SET status = 'picked_up', updated_at = clock_timestamp()
+     WHERE id = c.listing_id AND status = 'claimed';
     RETURN 'ok';
   END IF;
 
@@ -169,7 +179,9 @@ BEGIN
     INSERT INTO public.receiver_strike_events (receiver_id, claim_id, event_type, reason)
     SELECT c.receiver_id, c.id, 'timeout', 'claim timed out without pickup'
       FROM public.claims c
+      JOIN public.food_listings l ON l.id = c.listing_id
      WHERE c.status = 'expired'
+       AND l.safe_until > c.expires_at                -- food-safety expiry is not the receiver's fault
        AND c.handshake_code_hash IS NOT NULL
        AND c.handshake_verified_at IS NULL
        AND NOT c.handshake_review_required            -- locked claims: no automatic strike
