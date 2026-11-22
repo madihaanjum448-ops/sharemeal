@@ -18,6 +18,7 @@ from app.listings.routes import router as listings_router
 from app.receivers.routes import router as receivers_router
 from app.handshake.routes import claims_router as handshake_claims_router
 from app.handshake.routes import donor_router as handshake_donor_router
+from app.alerts.routes import router as alerts_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sharemeal.api")
@@ -100,6 +101,7 @@ app.include_router(listings_router)
 app.include_router(receivers_router)
 app.include_router(handshake_claims_router)
 app.include_router(handshake_donor_router)
+app.include_router(alerts_router)
 app.include_router(auth_router)
 app.include_router(claims_router)
 app.include_router(admin_router)
