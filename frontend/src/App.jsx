@@ -10,6 +10,10 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+    {/* Existing Member 1 routes */}
+    {/* Receiver routes */}
+    <Route path="/receiver/*" element={<ReceiverLayout/>} />
+
         <Route path="/" element={<Navigate to="/donor" replace />} />
 
         <Route path="/donor" element={<DonorLayout />}>
