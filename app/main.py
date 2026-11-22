@@ -16,6 +16,8 @@ from app.core.config import settings
 from app.core.supabase_client import get_supabase
 from app.jobs.expiry_worker import run_expiry_and_timeout_sweep
 from app.listings.routes import router as listings_router
+from app.receivers.routes import router as receivers_router
+from app.alerts.routes import router as alerts_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sharemeal.api")
@@ -97,6 +99,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(listings_router)
+app.include_router(receivers_router)
+app.include_router(alerts_router)
 app.include_router(auth_router)
 app.include_router(claims_router)
 app.include_router(admin_router)
