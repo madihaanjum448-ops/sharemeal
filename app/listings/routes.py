@@ -208,9 +208,10 @@ def get_my_listings(
     limit: int = Query(default=50, ge=1, le=100),
 ):
     try:
-        response = (
-            get_supabase()
-            .table("food_listings")
+        client = get_supabase()
+
+        listings_response = (
+            client.table("food_listings")
             .select(PRIVATE_FIELDS)
             .eq("donor_id", donor["id"])
             .order("created_at", desc=True)
@@ -218,9 +219,38 @@ def get_my_listings(
             .execute()
         )
 
+        listings = listings_response.data or []
+
+        for listing in listings:
+            listing["claim_id"] = None
+
+        listing_ids = [listing["id"] for listing in listings]
+
+        if listing_ids:
+            now = datetime.now(timezone.utc).isoformat()
+
+            claims_response = (
+                client.table("claims")
+                .select("id, listing_id")
+                .in_("listing_id", listing_ids)
+                .eq("status", "active")
+                .gt("expires_at", now)
+                .execute()
+            )
+
+            claim_ids_by_listing = {
+                str(claim["listing_id"]): str(claim["id"])
+                for claim in (claims_response.data or [])
+            }
+
+            for listing in listings:
+                listing["claim_id"] = claim_ids_by_listing.get(
+                    str(listing["id"])
+                )
+
         return {
-            "count": len(response.data or []),
-            "listings": response.data or [],
+            "count": len(listings),
+            "listings": listings,
         }
 
     except Exception:
@@ -228,8 +258,6 @@ def get_my_listings(
             status_code=503,
             detail="Could not retrieve your listings",
         )
-
-
 @router.get("/{listing_id}")
 def get_listing_details(
     listing_id: UUID,
