@@ -1,23 +1,23 @@
 function FoodCategory({ value, onChange }) {
   return (
-    <div style={{ marginBottom: "20px" }}>
-      <label style={{ fontWeight: 600, marginBottom: "8px" }}>
+    <div style={{ marginBottom: "24px" }}>
+      <label style={{ fontWeight: 700, fontSize: "14px", color: "var(--emerald-900)", marginBottom: "8px" }}>
         Food Category *
       </label>
-      <div style={{ display: "flex", gap: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
         <label
           style={{
-            flex: 1,
             display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            padding: "12px 16px",
+            alignItems: "flex-start",
+            gap: "12px",
+            padding: "16px",
             border: value === "human" ? "2px solid var(--primary)" : "1px solid var(--border)",
-            borderRadius: "8px",
-            background: value === "human" ? "var(--primary-light)" : "#fff",
+            borderRadius: "var(--radius-md)",
+            background: value === "human" ? "var(--emerald-50)" : "#ffffff",
             cursor: "pointer",
-            fontWeight: 500,
             margin: 0,
+            transition: "all 0.15s ease",
+            boxShadow: value === "human" ? "0 2px 8px rgba(4, 120, 87, 0.08)" : "none",
           }}
         >
           <input
@@ -26,27 +26,31 @@ function FoodCategory({ value, onChange }) {
             value="human"
             checked={value === "human"}
             onChange={(e) => onChange(e.target.value)}
-            style={{ margin: 0, accentColor: "var(--primary)" }}
+            style={{ marginTop: "3px", accentColor: "var(--primary)", width: "16px", height: "16px" }}
           />
           <div>
-            <div style={{ fontWeight: 600 }}>Human Consumption</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Cooked meals, groceries, fresh produce</div>
+            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--emerald-900)", marginBottom: "2px" }}>
+              Human Consumption
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.4 }}>
+              Cooked meals, pantry staples, baked goods, fresh fruits &amp; vegetables
+            </div>
           </div>
         </label>
 
         <label
           style={{
-            flex: 1,
             display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            padding: "12px 16px",
+            alignItems: "flex-start",
+            gap: "12px",
+            padding: "16px",
             border: value === "animal" ? "2px solid var(--primary)" : "1px solid var(--border)",
-            borderRadius: "8px",
-            background: value === "animal" ? "var(--primary-light)" : "#fff",
+            borderRadius: "var(--radius-md)",
+            background: value === "animal" ? "var(--emerald-50)" : "#ffffff",
             cursor: "pointer",
-            fontWeight: 500,
             margin: 0,
+            transition: "all 0.15s ease",
+            boxShadow: value === "animal" ? "0 2px 8px rgba(4, 120, 87, 0.08)" : "none",
           }}
         >
           <input
@@ -55,11 +59,15 @@ function FoodCategory({ value, onChange }) {
             value="animal"
             checked={value === "animal"}
             onChange={(e) => onChange(e.target.value)}
-            style={{ margin: 0, accentColor: "var(--primary)" }}
+            style={{ marginTop: "3px", accentColor: "var(--primary)", width: "16px", height: "16px" }}
           />
           <div>
-            <div style={{ fontWeight: 600 }}>Animal Feed</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Safe for pets, livestock, or shelters</div>
+            <div style={{ fontWeight: 700, fontSize: "14px", color: "var(--emerald-900)", marginBottom: "2px" }}>
+              Animal Feed
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: 1.4 }}>
+              Safe for livestock, animal shelters, sanctuaries, or composting
+            </div>
           </div>
         </label>
       </div>

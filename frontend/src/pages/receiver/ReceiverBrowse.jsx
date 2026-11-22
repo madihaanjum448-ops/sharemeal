@@ -65,7 +65,7 @@ function ReceiverBrowse() {
           setUseLocation(true);
           setLocLoading(false);
         },
-        (err) => {
+        (_err) => {
           alert("Could not detect location. Please check browser permissions.");
           setLocLoading(false);
         }
@@ -122,10 +122,14 @@ function ReceiverBrowse() {
 
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
         <div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "var(--emerald-50)", color: "var(--primary)", padding: "4px 12px", borderRadius: "var(--radius-pill)", fontSize: "12px", fontWeight: 700, marginBottom: "8px", border: "1px solid var(--emerald-100)" }}>
+            <span>🤝 Community Food Feed</span>
+          </div>
           <h1>Available Food Donations</h1>
-          <p>Browse fresh surplus food posted by verified donors near you.</p>
+          <p>Browse fresh surplus food listings from verified local donors in your area.</p>
         </div>
         <button
           type="button"
@@ -133,7 +137,7 @@ function ReceiverBrowse() {
           disabled={loading}
           className="btn-secondary"
         >
-          {loading ? "Refreshing..." : "Refresh Listings"}
+          {loading ? "Refreshing..." : "↻ Refresh Feed"}
         </button>
       </div>
 
@@ -147,14 +151,14 @@ function ReceiverBrowse() {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="card" style={{ padding: "16px 20px", marginBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "14px" }}>
+      <div className="card" style={{ padding: "18px 24px", marginBottom: "28px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-main)" }}>
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--emerald-900)" }}>
               Category:
             </span>
             {[
-              { val: "", label: "All" },
+              { val: "", label: "All Items" },
               { val: "human", label: "Human Food" },
               { val: "animal", label: "Animal Feed" },
             ].map((cat) => (
@@ -163,6 +167,7 @@ function ReceiverBrowse() {
                 type="button"
                 onClick={() => setCategoryFilter(cat.val)}
                 className={categoryFilter === cat.val ? "btn btn-sm" : "btn-secondary btn-sm"}
+                style={{ borderRadius: "var(--radius-pill)" }}
               >
                 {cat.label}
               </button>
@@ -175,19 +180,20 @@ function ReceiverBrowse() {
               onClick={handleToggleLocation}
               disabled={locLoading}
               className={useLocation ? "btn btn-sm" : "btn-secondary btn-sm"}
+              style={{ borderRadius: "var(--radius-pill)" }}
             >
-              {locLoading ? "Locating..." : useLocation ? "Distance: Nearby (< " + radiusKm + " km)" : "Filter by Distance"}
+              {locLoading ? "Detecting GPS..." : useLocation ? "📍 Filtered by Distance" : "📍 Filter by Distance"}
             </button>
 
             {useLocation && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label htmlFor="radius-select" style={{ margin: 0, fontSize: "13px" }}>Radius:</label>
+                <label htmlFor="radius-select" style={{ margin: 0, fontSize: "13px", color: "var(--text-muted)" }}>Within:</label>
                 <select
                   id="radius-select"
                   aria-label="Radius"
                   value={radiusKm}
                   onChange={(e) => setRadiusKm(Number(e.target.value))}
-                  style={{ width: "auto", margin: 0, padding: "6px 10px" }}
+                  style={{ width: "auto", margin: 0, padding: "6px 12px", fontSize: "13px" }}
                 >
                   <option value={5}>5 km</option>
                   <option value={10}>10 km</option>
@@ -203,16 +209,21 @@ function ReceiverBrowse() {
 
       {/* Listings Grid */}
       {loading && listings.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "40px" }}>
-          <p style={{ color: "var(--text-muted)", margin: 0 }}>Searching for available food donations...</p>
+        <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
+          <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "15px" }}>
+            Searching for available food donations...
+          </p>
         </div>
       ) : listings.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "48px 20px" }}>
-          <h3 style={{ marginBottom: "8px" }}>No food listings available right now</h3>
-          <p style={{ color: "var(--text-muted)", margin: 0 }}>
+        <div className="card" style={{ textAlign: "center", padding: "56px 24px" }}>
+          <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔍</div>
+          <h3 style={{ fontSize: "20px", marginBottom: "8px", color: "var(--emerald-900)" }}>
+            No food listings available right now
+          </h3>
+          <p style={{ color: "var(--text-muted)", margin: "0 auto", maxWidth: "460px" }}>
             {useLocation
-              ? "No food found within " + radiusKm + " km of your location. Try expanding the radius or checking back soon."
-              : "Check back soon as donors regularly post fresh surplus meals."}
+              ? `No active food listings found within ${radiusKm} km of your location. Try expanding the radius or checking back soon.`
+              : "Donors regularly post fresh surplus meals throughout the day. Please check back shortly."}
           </p>
         </div>
       ) : (
@@ -225,12 +236,12 @@ function ReceiverBrowse() {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                borderLeft: "4px solid var(--primary)",
               }}
             >
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px", gap: "8px" }}>
-                  <h3 style={{ fontSize: "18px", margin: 0, color: "var(--text-main)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px", gap: "10px" }}>
+                  <h3 style={{ fontSize: "18px", margin: 0, color: "var(--emerald-900)", lineHeight: 1.3 }}>
                     {item.title}
                   </h3>
                   <span className={`badge badge-${item.food_category}`}>
@@ -239,22 +250,22 @@ function ReceiverBrowse() {
                 </div>
 
                 {item.description && (
-                  <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "14px" }}>
+                  <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "14px", lineHeight: 1.5 }}>
                     {item.description}
                   </p>
                 )}
 
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
-                  <span style={{ fontSize: "12px", background: "#f3f4f6", padding: "4px 8px", borderRadius: "4px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                  <span style={{ fontSize: "12px", background: "var(--bg-cream)", color: "var(--text-main)", padding: "4px 10px", borderRadius: "var(--radius-pill)", border: "1px solid var(--border)", fontWeight: 600 }}>
                     Qty: {item.quantity}
                   </span>
                   {item.servings && (
-                    <span style={{ fontSize: "12px", background: "#f3f4f6", padding: "4px 8px", borderRadius: "4px" }}>
+                    <span style={{ fontSize: "12px", background: "var(--bg-cream)", color: "var(--text-main)", padding: "4px 10px", borderRadius: "var(--radius-pill)", border: "1px solid var(--border)", fontWeight: 600 }}>
                       {item.servings} servings
                     </span>
                   )}
                   {item.distance_km !== null && item.distance_km !== undefined && (
-                    <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "4px 8px", borderRadius: "4px", fontWeight: 600 }}>
+                    <span style={{ fontSize: "12px", background: "var(--emerald-50)", color: "var(--primary)", padding: "4px 10px", borderRadius: "var(--radius-pill)", fontWeight: 700, border: "1px solid var(--emerald-100)" }}>
                       ~{item.distance_km} km away
                     </span>
                   )}
@@ -262,15 +273,15 @@ function ReceiverBrowse() {
 
                 <div style={{ fontSize: "13px", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "6px" }}>
                   <div>
-                    <strong>Safe until:</strong> {formatDateTime(item.safe_until)}
+                    <strong style={{ color: "var(--text-main)" }}>Safe until:</strong> {formatDateTime(item.safe_until)}
                   </div>
-                  <div style={{ fontSize: "12px", color: "#6b7280" }}>
-                    Pickup location unlocked upon claim
+                  <div style={{ fontSize: "12px", color: "var(--text-light)" }}>
+                    🔒 Exact pickup address unlocked upon claim
                   </div>
                 </div>
               </div>
 
-              <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span className="badge badge-available">Available</span>
                 <button
                   type="button"
@@ -281,7 +292,7 @@ function ReceiverBrowse() {
                   }}
                   className="btn btn-sm"
                 >
-                  View &amp; Claim
+                  View Details &amp; Claim
                 </button>
               </div>
             </div>
@@ -305,82 +316,85 @@ function ReceiverBrowse() {
             </div>
 
             {claimSuccess ? (
-              <div className="alert alert-success" style={{ flexDirection: "column", alignItems: "flex-start" }}>
-                <h4 style={{ margin: "0 0 6px 0", color: "var(--primary)" }}>
-                  Listing Claimed Successfully!
+              <div className="alert alert-success" style={{ flexDirection: "column", alignItems: "flex-start", padding: "20px" }}>
+                <h4 style={{ margin: "0 0 6px 0", color: "var(--emerald-900)", fontSize: "16px" }}>
+                  🎉 Food Listing Claimed Successfully!
                 </h4>
-                <p style={{ margin: "0 0 14px 0", fontSize: "14px" }}>
-                  You have successfully claimed this food donation. The pickup address and coordinates are now unlocked in your Claims tab.
+                <p style={{ margin: "0 0 16px 0", fontSize: "14px", color: "var(--emerald-900)" }}>
+                  You have successfully claimed this food donation. The pickup address, contact instructions, and GPS navigation are now unlocked in your Claims tab.
                 </p>
                 <button
                   type="button"
                   onClick={() => navigate("/receiver/claims")}
                   className="btn"
                 >
-                  View Pickup Details in My Claims
+                  View Pickup Details in My Claims →
                 </button>
               </div>
             ) : (
               <div>
-                <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
                   <span className={`badge badge-${selectedListing.food_category}`}>
                     {selectedListing.food_category === "human" ? "Human Food" : "Animal Feed"}
                   </span>
-                  <span className="badge badge-available">Available</span>
+                  <span className="badge badge-available">Available for Pickup</span>
                   {selectedListing.distance_km && (
-                    <span className="badge" style={{ background: "#e0f2fe", color: "#0369a1" }}>
+                    <span className="badge" style={{ background: "var(--emerald-50)", color: "var(--primary)", border: "1px solid var(--emerald-100)" }}>
                       ~{selectedListing.distance_km} km away
                     </span>
                   )}
                 </div>
 
                 {selectedListing.description && (
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Description</label>
-                    <p style={{ margin: 0, fontSize: "14px" }}>{selectedListing.description}</p>
+                  <div style={{ marginBottom: "20px" }}>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "4px" }}>Description</label>
+                    <p style={{ margin: 0, fontSize: "14px", color: "var(--text-main)", lineHeight: 1.5 }}>
+                      {selectedListing.description}
+                    </p>
                   </div>
                 )}
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px", background: "var(--bg-cream)", padding: "16px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)" }}>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Quantity</label>
-                    <div style={{ fontSize: "15px", fontWeight: 600 }}>{selectedListing.quantity}</div>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Quantity</label>
+                    <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--emerald-900)" }}>{selectedListing.quantity}</div>
                   </div>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Servings</label>
-                    <div style={{ fontSize: "15px", fontWeight: 600 }}>{selectedListing.servings || "N/A"}</div>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Servings</label>
+                    <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--emerald-900)" }}>{selectedListing.servings || "Not specified"}</div>
                   </div>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Safe Until</label>
-                    <div style={{ fontSize: "14px" }}>{formatDateTime(selectedListing.safe_until)}</div>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Safe Until</label>
+                    <div style={{ fontSize: "14px", color: "var(--text-main)", fontWeight: 600 }}>{formatDateTime(selectedListing.safe_until)}</div>
                   </div>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Approx. Location</label>
-                    <div style={{ fontSize: "14px" }}>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Approximate Area</label>
+                    <div style={{ fontSize: "14px", color: "var(--text-main)" }}>
                       {selectedListing.approx_latitude && selectedListing.approx_longitude
-                        ? `${selectedListing.approx_latitude}, ${selectedListing.approx_longitude}`
-                        : "Area shared upon claim"}
+                        ? `~${selectedListing.approx_latitude}, ${selectedListing.approx_longitude}`
+                        : "Revealed on claim"}
                     </div>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: "8px",
-                    padding: "14px",
+                    background: "var(--emerald-50)",
+                    border: "1px solid var(--emerald-100)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "14px 16px",
                     marginBottom: "20px",
                     fontSize: "13px",
-                    color: "#166534",
+                    color: "var(--emerald-900)",
+                    lineHeight: 1.5,
                   }}
                 >
-                  <strong>Donor Privacy Protection:</strong> Exact pickup address and GPS coordinates are unlocked as soon as you confirm this claim. Please ensure you can collect the food before the safe-until time.
+                  <strong>🛡️ Donor Privacy Protection:</strong> Exact pickup address, building instructions, and precise GPS coordinates are unlocked immediately upon confirming this claim. Please ensure you can collect the food before the freshness window expires.
                 </div>
 
                 {!isApproved && (
                   <div className="alert alert-warning" style={{ fontSize: "13px" }}>
-                    Your receiver account is pending administrator verification. Food claiming is disabled until verified.
+                    Your receiver account is currently pending administrator verification. Food claiming will be enabled once your credentials are verified.
                   </div>
                 )}
 
@@ -390,7 +404,7 @@ function ReceiverBrowse() {
                   </div>
                 )}
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "24px" }}>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
                   <button
                     type="button"
                     onClick={() => setSelectedListing(null)}
@@ -404,7 +418,7 @@ function ReceiverBrowse() {
                     disabled={claiming || !isApproved}
                     className="btn"
                   >
-                    {claiming ? "Claiming Food..." : "Claim This Food"}
+                    {claiming ? "Claiming Donation..." : "Confirm & Claim This Food"}
                   </button>
                 </div>
               </div>

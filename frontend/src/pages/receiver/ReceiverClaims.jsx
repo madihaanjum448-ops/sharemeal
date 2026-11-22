@@ -10,6 +10,9 @@ function ReceiverClaims() {
   const [cancellingId, setCancellingId] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [pickupCodes, setPickupCodes] = useState({});
+const [verifyingId, setVerifyingId] = useState(null);
+const [verificationMessages, setVerificationMessages] = useState({});
 
   const fetchClaims = useCallback(async () => {
     try {
@@ -30,7 +33,7 @@ function ReceiverClaims() {
   }, [fetchClaims]);
 
   const handleCancelClaim = async (claimId) => {
-    if (!window.confirm("Are you sure you want to cancel this food claim? The food will become available to other receivers.")) {
+    if (!window.confirm("Are you sure you want to cancel this food claim? The food will become available again to other community receivers.")) {
       return;
     }
 
@@ -42,7 +45,7 @@ function ReceiverClaims() {
         method: "POST",
       });
 
-      setActionMessage("Claim cancelled successfully.");
+      setActionMessage("Claim cancelled successfully. The listing has been released.");
       // Update local state
       setClaims((prev) =>
         prev.map((c) =>
@@ -58,7 +61,68 @@ function ReceiverClaims() {
       setCancellingId(null);
     }
   };
+  const handleVerifyPickup = async (claimId) => {
+  const code = pickupCodes[claimId] || "";
 
+  if (!/^\d{4}$/.test(code)) {
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: "Please enter a valid 4-digit pickup code.",
+    }));
+    return;
+  }
+
+  try {
+    setVerifyingId(claimId);
+
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: "",
+    }));
+
+    const data = await authFetch(
+      `/handshake/claims/${claimId}/verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code }),
+      }
+    );
+
+    setClaims((prev) =>
+      prev.map((item) =>
+        item.claim.id === claimId
+          ? {
+              ...item,
+              claim: {
+                ...item.claim,
+                status: "completed",
+              },
+            }
+          : item
+      )
+    );
+
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: data.message || "Pickup verified successfully!",
+    }));
+
+    setPickupCodes((prev) => ({
+      ...prev,
+      [claimId]: "",
+    }));
+  } catch (err) {
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: err.message || "Pickup verification failed.",
+    }));
+  } finally {
+    setVerifyingId(null);
+  }
+};
   const formatDateTime = (isoString) => {
     if (!isoString) return "N/A";
     try {
@@ -87,19 +151,23 @@ function ReceiverClaims() {
 
   return (
     <div className="page-container">
+      {/* Header */}
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
         <div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "var(--emerald-50)", color: "var(--primary)", padding: "4px 12px", borderRadius: "var(--radius-pill)", fontSize: "12px", fontWeight: 700, marginBottom: "8px", border: "1px solid var(--emerald-100)" }}>
+            <span>📦 Claim Management</span>
+          </div>
           <h1>My Food Claims</h1>
-          <p>View your active and previous food claims, pickup instructions, and addresses.</p>
+          <p>View your active food claims, unlocked pickup instructions, and navigation details.</p>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={fetchClaims}
             disabled={loading}
             className="btn-secondary"
           >
-            {loading ? "Refreshing..." : "Refresh"}
+            {loading ? "Refreshing..." : "↻ Refresh"}
           </button>
           <Link to="/receiver" className="btn">
             Browse More Food
@@ -130,18 +198,19 @@ function ReceiverClaims() {
       )}
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
         {[
           { key: "all", label: `All Claims (${claims.length})` },
-          { key: "active", label: "Active" },
-          { key: "cancelled", label: "Cancelled" },
-          { key: "expired", label: "Expired" },
+          { key: "active", label: `Active (${claims.filter(c => c.claim.status === "active" && !isExpired(c.claim.expires_at)).length})` },
+          { key: "cancelled", label: `Cancelled (${claims.filter(c => c.claim.status === "cancelled").length})` },
+          { key: "expired", label: `Expired (${claims.filter(c => isExpired(c.claim.expires_at) || c.claim.status === "expired").length})` },
         ].map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setStatusFilter(tab.key)}
             className={statusFilter === tab.key ? "btn btn-sm" : "btn-secondary btn-sm"}
+            style={{ borderRadius: "var(--radius-pill)" }}
           >
             {tab.label}
           </button>
@@ -149,33 +218,43 @@ function ReceiverClaims() {
       </div>
 
       {loading && claims.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "40px" }}>
-          <p style={{ color: "var(--text-muted)", margin: 0 }}>Loading your claims...</p>
+        <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
+          <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "15px" }}>Loading your food claims...</p>
         </div>
       ) : filteredClaims.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: "48px 24px" }}>
-          <h3 style={{ marginBottom: "8px" }}>No food claims found</h3>
-          <p style={{ color: "var(--text-muted)", marginBottom: "20px" }}>
+        <div className="card" style={{ textAlign: "center", padding: "56px 24px" }}>
+          <div style={{ fontSize: "36px", marginBottom: "12px" }}>📦</div>
+          <h3 style={{ fontSize: "20px", marginBottom: "8px", color: "var(--emerald-900)" }}>
+            No food claims found
+          </h3>
+          <p style={{ color: "var(--text-muted)", marginBottom: "24px", maxWidth: "420px", margin: "0 auto 24px auto" }}>
             {statusFilter === "all"
-              ? "You haven't claimed any food yet."
-              : `No claims with status "${statusFilter}".`}
+              ? "You haven't claimed any food donations yet. Browse available listings to rescue surplus meals."
+              : `No food claims found with status "${statusFilter}".`}
           </p>
           <Link to="/receiver" className="btn">
             Browse Available Food
           </Link>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {filteredClaims.map(({ claim, listing }) => {
             const expired = isExpired(claim.expires_at);
             const statusDisplay = expired && claim.status === "active" ? "expired" : claim.status;
             const hasPickupAddress = Boolean(listing?.pickup_address);
 
             return (
-              <div key={claim.id} className="card" style={{ borderLeft: statusDisplay === "active" ? "5px solid var(--primary)" : "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
+              <div
+                key={claim.id}
+                className="card"
+                style={{
+                  borderLeft: statusDisplay === "active" ? "5px solid var(--primary)" : "1px solid var(--border)",
+                  padding: "28px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
                   <div>
-                    <h2 style={{ fontSize: "20px", margin: "0 0 6px 0", color: "var(--text-main)" }}>
+                    <h2 style={{ fontSize: "20px", margin: "0 0 6px 0", color: "var(--emerald-900)" }}>
                       {listing?.title || "Food Item"}
                     </h2>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -188,7 +267,7 @@ function ReceiverClaims() {
                         </span>
                       )}
                       <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                        Claimed: {formatDateTime(claim.claimed_at)}
+                        Claimed on {formatDateTime(claim.claimed_at)}
                       </span>
                     </div>
                   </div>
@@ -205,24 +284,24 @@ function ReceiverClaims() {
                   )}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px", background: "var(--bg-cream)", padding: "16px", borderRadius: "var(--radius-md)", border: "1px solid var(--border)" }}>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Quantity</label>
-                    <div style={{ fontSize: "14px", fontWeight: 600 }}>{listing?.quantity || "N/A"}</div>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Quantity</label>
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--emerald-900)" }}>{listing?.quantity || "N/A"}</div>
                   </div>
                   {listing?.servings && (
                     <div>
-                      <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Servings</label>
-                      <div style={{ fontSize: "14px", fontWeight: 600 }}>{listing.servings}</div>
+                      <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Servings</label>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--emerald-900)" }}>{listing.servings}</div>
                     </div>
                   )}
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Food Safe Until</label>
-                    <div style={{ fontSize: "14px" }}>{formatDateTime(listing?.safe_until)}</div>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Food Safe Until</label>
+                    <div style={{ fontSize: "14px", color: "var(--text-main)", fontWeight: 600 }}>{formatDateTime(listing?.safe_until)}</div>
                   </div>
                   <div>
-                    <label style={{ color: "var(--text-muted)", fontSize: "12px" }}>Claim Window Expires</label>
-                    <div style={{ fontSize: "14px", fontWeight: statusDisplay === "active" ? 600 : "normal", color: statusDisplay === "active" ? "var(--warning)" : "inherit" }}>
+                    <label style={{ color: "var(--text-muted)", fontSize: "12px", marginBottom: "2px" }}>Claim Window Closes</label>
+                    <div style={{ fontSize: "14px", fontWeight: statusDisplay === "active" ? 700 : "normal", color: statusDisplay === "active" ? "var(--warning)" : "inherit" }}>
                       {formatDateTime(claim.expires_at)}
                     </div>
                   </div>
@@ -232,23 +311,26 @@ function ReceiverClaims() {
                 {hasPickupAddress ? (
                   <div
                     style={{
-                      background: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: "8px",
-                      padding: "16px",
-                      marginTop: "12px",
+                      background: "var(--emerald-50)",
+                      border: "1px solid var(--emerald-200)",
+                      borderRadius: "var(--radius-md)",
+                      padding: "20px",
+                      marginTop: "16px",
                     }}
                   >
-                    <h4 style={{ margin: "0 0 8px 0", color: "#166534", fontSize: "14px", fontWeight: 700 }}>
-                      Unlocked Pickup Location &amp; Instructions
-                    </h4>
-                    <p style={{ margin: "0 0 10px 0", fontSize: "15px", color: "var(--text-main)", fontWeight: 500 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "16px" }}>🔓</span>
+                      <h4 style={{ margin: 0, color: "var(--emerald-900)", fontSize: "15px", fontWeight: 700 }}>
+                        Unlocked Pickup Location &amp; Instructions
+                      </h4>
+                    </div>
+                    <p style={{ margin: "0 0 14px 0", fontSize: "15px", color: "var(--text-main)", fontWeight: 600, lineHeight: 1.5 }}>
                       {listing.pickup_address}
                     </p>
                     {listing.latitude && listing.longitude && (
-                      <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap", fontSize: "13px" }}>
-                        <span style={{ color: "var(--text-muted)" }}>
-                          Coordinates: {listing.latitude.toFixed(5)}, {listing.longitude.toFixed(5)}
+                      <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap", fontSize: "13px" }}>
+                        <span style={{ color: "var(--text-muted)", fontWeight: 500 }}>
+                          GPS Coordinates: {listing.latitude.toFixed(5)}, {listing.longitude.toFixed(5)}
                         </span>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${listing.latitude},${listing.longitude}`}
@@ -257,18 +339,79 @@ function ReceiverClaims() {
                           className="btn-secondary btn-sm"
                           style={{ textDecoration: "none" }}
                         >
-                          Open in Google Maps
+                          🗺️ Open in Google Maps
                         </a>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px" }}>
+                  <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "12px" }}>
                     {statusDisplay === "expired"
-                      ? "This claim window has expired. Pickup details are no longer available."
-                      : "Pickup details are only revealed for active, unexpired claims."}
-                  </div>
+                      ? "⚠️ This claim window has expired. Pickup details are no longer active."
+                      : "Pickup details are only unlocked for active, unexpired food claims."}
+                                    </div>
                 )}
+
+                {(statusDisplay === "active" && !expired) ||
+  verificationMessages[claim.id]?.includes("successfully") ? (
+                  <div
+                    style={{
+                      marginTop: "20px",
+                      padding: "20px",
+                      background: "var(--bg-cream)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                    }}
+                  >
+                    <h4 style={{ marginTop: 0, color: "var(--emerald-900)" }}>
+                      Verify Food Pickup
+                    </h4>
+
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                      Enter the 4-digit pickup code provided by the donor.
+                    </p>
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="Enter 4-digit code"
+                      value={pickupCodes[claim.id] || ""}
+                      onChange={(e) =>
+                        setPickupCodes((prev) => ({
+                          ...prev,
+                          [claim.id]: e.target.value.replace(/\D/g, "").slice(0, 4),
+                        }))
+                      }
+                      disabled={verifyingId === claim.id}
+                    />
+
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => handleVerifyPickup(claim.id)}
+                      disabled={verifyingId === claim.id}
+                    >
+                      {verifyingId === claim.id
+                        ? "Verifying..."
+                        : "Verify Pickup"}
+                    </button>
+
+                    {verificationMessages[claim.id] && (
+                      <p
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "13px",
+                          color: verificationMessages[claim.id].includes("successfully")
+                            ? "var(--primary)"
+                            : "var(--red-accent)",
+                        }}
+                      >
+                        {verificationMessages[claim.id]}
+                      </p>
+                    )}
+                                    </div>
+                ) : null}
               </div>
             );
           })}

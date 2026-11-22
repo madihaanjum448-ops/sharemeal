@@ -1,12 +1,11 @@
-
 .donor-layout {
   min-height: 100vh;
-  background-color: #f7faf7;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-cream);
 }
 
 .donor-main {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 6%;
+  flex: 1;
 }

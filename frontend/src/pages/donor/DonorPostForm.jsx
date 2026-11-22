@@ -25,6 +25,7 @@ function DonorPostForm() {
 
   const [hygieneConfirmed, setHygieneConfirmed] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -141,25 +142,25 @@ function DonorPostForm() {
   };
 
   return (
-    <div className="card" style={{ maxWidth: "800px", margin: "0 auto" }}>
-      <div style={{ marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "22px", color: "var(--primary)", marginBottom: "6px" }}>
-          Donate Food
+    <div className="card" style={{ maxWidth: "860px", margin: "0 auto", padding: "36px" }}>
+      <div style={{ marginBottom: "28px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "18px" }}>
+        <h2 style={{ fontSize: "24px", color: "var(--emerald-900)", marginBottom: "6px" }}>
+          Post Food Donation
         </h2>
         <p style={{ color: "var(--text-muted)", margin: 0, fontSize: "14px" }}>
-          Share your surplus food with verified receivers in your community.
+          Fill in the details below to share surplus food with verified receivers in your community.
         </p>
       </div>
 
       {success && (
-        <div className="alert alert-success" style={{ flexDirection: "column", alignItems: "flex-start" }}>
-          <div style={{ fontWeight: 700, marginBottom: "4px" }}>
-            Food listing posted successfully!
+        <div className="alert alert-success" style={{ flexDirection: "column", alignItems: "flex-start", padding: "18px" }}>
+          <div style={{ fontWeight: 800, fontSize: "15px", marginBottom: "4px" }}>
+            🎉 Food Listing Posted Successfully!
           </div>
-          <p style={{ margin: "0 0 12px 0", fontSize: "14px" }}>
-            Your donation &quot;{success.title}&quot; is now visible to nearby verified receivers.
+          <p style={{ margin: "0 0 14px 0", fontSize: "14px", color: "var(--emerald-900)" }}>
+            Your donation <strong>&quot;{success.title}&quot;</strong> is now active and visible to nearby verified community receivers.
           </p>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button
               type="button"
               onClick={() => navigate("/donor/posts")}
@@ -172,111 +173,130 @@ function DonorPostForm() {
               onClick={() => setSuccess(null)}
               className="btn-secondary btn-sm"
             >
-              Donate Another Item
+              Post Another Donation
             </button>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="alert alert-danger">
+        <div className="alert alert-danger" style={{ marginBottom: "24px" }}>
           <span>{error}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit}>
-        <label htmlFor="title">Food Title *</label>
-        <input
-          id="title"
-          type="text"
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          placeholder="e.g. Fresh vegetable biryani, 15 meal boxes"
-          required
-        />
+        {/* Section 1: Food Details */}
+        <div style={{ marginBottom: "24px" }}>
+          <label htmlFor="title">Food Title *</label>
+          <input
+            id="title"
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            placeholder="e.g. Fresh vegetable curry, 20 meal packs, or artisan bread loaves"
+            required
+          />
 
-        <label htmlFor="description">Description (Optional)</label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          placeholder="Details on food packaging, ingredients, dietary notes..."
-        />
+          <label htmlFor="description">Description (Optional)</label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            placeholder="Describe ingredients, allergens, preparation timestamp, or packaging details..."
+          />
 
-        <FoodCategory
-          value={formData.food_category}
-          onChange={(val) => setFormData((prev) => ({ ...prev, food_category: val }))}
-        />
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          <div>
-            <label htmlFor="quantity">Quantity *</label>
-            <input
-              id="quantity"
-              type="text"
-              name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
-              placeholder="e.g. 5 kg or 12 packs"
-              required
-            />
-          </div>
-
-          <div>
-            <label htmlFor="servings">Servings (Optional)</label>
-            <input
-              id="servings"
-              type="number"
-              name="servings"
-              min="1"
-              value={formData.servings}
-              onChange={handleChange}
-              placeholder="e.g. 10"
-            />
-          </div>
+          <FoodCategory
+            value={formData.food_category}
+            onChange={(val) => setFormData((prev) => ({ ...prev, food_category: val }))}
+          />
         </div>
 
-        <SafeUntil
-          value={formData.safe_until}
-          onChange={(val) => setFormData((prev) => ({ ...prev, safe_until: val }))}
-        />
+        {/* Section 2: Quantity & Availability */}
+        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px", marginBottom: "24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div>
+              <label htmlFor="quantity">Quantity &amp; Units *</label>
+              <input
+                id="quantity"
+                type="text"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleChange}
+                placeholder="e.g. 5 kg, 12 boxes, or 3 trays"
+                required
+              />
+            </div>
 
-        <label htmlFor="pickup_address">Complete Pickup Address *</label>
-        <textarea
-          id="pickup_address"
-          name="pickup_address"
-          value={formData.pickup_address}
-          onChange={handleChange}
-          placeholder="Full address, landmarks, pickup contact instructions..."
-          required
-        />
+            <div>
+              <label htmlFor="servings">Estimated Servings (Optional)</label>
+              <input
+                id="servings"
+                type="number"
+                name="servings"
+                min="1"
+                value={formData.servings}
+                onChange={handleChange}
+                placeholder="e.g. 15"
+              />
+            </div>
+          </div>
 
-        <MapPicker
-          initialPosition={
-            formData.latitude && formData.longitude
-              ? { latitude: formData.latitude, longitude: formData.longitude }
-              : null
-          }
-          onLocationSelect={handleLocationSelect}
-        />
+          <SafeUntil
+            value={formData.safe_until}
+            onChange={(val) => setFormData((prev) => ({ ...prev, safe_until: val }))}
+          />
+        </div>
 
-        <PhotoUpload
-          previewUrl={photoPreview}
-          onPhotoSelect={(file, url) => setPhotoPreview(url)}
-          onPhotoClear={() => setPhotoPreview(null)}
-        />
+        {/* Section 3: Pickup Location */}
+        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px", marginBottom: "24px" }}>
+          <label htmlFor="pickup_address">Complete Pickup Address *</label>
+          <textarea
+            id="pickup_address"
+            name="pickup_address"
+            value={formData.pickup_address}
+            onChange={handleChange}
+            placeholder="Street address, building name, floor/unit, and pickup instructions (e.g. ring back kitchen door)..."
+            required
+          />
 
-        <HygieneChecklist onHygieneConfirmed={setHygieneConfirmed} />
+          <MapPicker
+            initialPosition={
+              formData.latitude && formData.longitude
+                ? { latitude: formData.latitude, longitude: formData.longitude }
+                : null
+            }
+            onLocationSelect={handleLocationSelect}
+          />
 
-        <button
-          type="submit"
-          disabled={loading || !hygieneConfirmed}
-          style={{ width: "100%", padding: "14px", fontSize: "16px", marginTop: "8px" }}
-        >
-          {loading ? "Posting Food Donation..." : "Post Food Donation"}
-        </button>
+          <PhotoUpload
+  previewUrl={photoPreview}
+  onPhotoSelect={(file, url) => {
+    setSelectedPhoto(file);
+    setPhotoPreview(url);
+  }}
+  onPhotoClear={() => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+  }}
+/>
+        </div>
+
+        {/* Section 4: Safety & Confirmation */}
+        <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "20px" }}>
+          <HygieneChecklist onHygieneConfirmed={setHygieneConfirmed} />
+
+          <button
+            type="submit"
+            disabled={loading || !hygieneConfirmed}
+            className="btn btn-lg"
+            style={{ width: "100%", marginTop: "8px" }}
+          >
+            {loading ? "Publishing Food Donation..." : "Publish Food Donation"}
+          </button>
+        </div>
       </form>
     </div>
   );

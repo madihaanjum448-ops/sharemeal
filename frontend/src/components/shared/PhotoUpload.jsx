@@ -39,12 +39,12 @@ function PhotoUpload({ onPhotoSelect, previewUrl, onPhotoClear }) {
   };
 
   return (
-    <div style={{ marginBottom: "20px" }}>
-      <label style={{ fontWeight: 600, marginBottom: "6px" }}>
+    <div style={{ marginBottom: "24px" }}>
+      <label style={{ fontWeight: 700, fontSize: "14px", color: "var(--emerald-900)", marginBottom: "4px" }}>
         Food Photo (Optional)
       </label>
-      <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>
-        Photos help receivers quickly identify food and packaging.
+      <span style={{ fontSize: "12px", color: "var(--text-muted)", display: "block", marginBottom: "10px" }}>
+        A clear photo helps community receivers identify the meal and packaging.
       </span>
 
       {previewUrl ? (
@@ -54,11 +54,13 @@ function PhotoUpload({ onPhotoSelect, previewUrl, onPhotoClear }) {
             alt="Food preview"
             style={{
               width: "100%",
-              maxWidth: "280px",
-              height: "180px",
+              maxWidth: "320px",
+              height: "190px",
               objectFit: "cover",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-md)",
               border: "1px solid var(--border)",
+              boxShadow: "var(--shadow-card)",
+              display: "block",
             }}
           />
           <button
@@ -67,30 +69,40 @@ function PhotoUpload({ onPhotoSelect, previewUrl, onPhotoClear }) {
             className="btn-danger btn-sm"
             style={{
               position: "absolute",
-              top: "8px",
-              right: "8px",
-              padding: "4px 8px",
+              top: "10px",
+              right: "10px",
+              padding: "4px 10px",
+              fontSize: "12px",
             }}
           >
-            Remove
+            ✕ Remove
           </button>
         </div>
       ) : (
-        <div>
+        <div
+          style={{
+            border: "2px dashed var(--border)",
+            borderRadius: "var(--radius-md)",
+            padding: "20px",
+            textAlign: "center",
+            background: "#ffffff",
+          }}
+        >
           <input
             type="file"
             accept="image/*"
             onChange={handleFileChange}
             disabled={compressing}
-            style={{ marginBottom: "6px" }}
+            id="photo-file-input"
+            style={{ marginBottom: "6px", maxWidth: "280px" }}
           />
           {compressing && (
-            <p style={{ fontSize: "12px", color: "var(--primary)" }}>
-              Optimizing image...
+            <p style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 600, margin: "6px 0 0 0" }}>
+              ⏳ Optimizing image for web...
             </p>
           )}
           {error && (
-            <p style={{ fontSize: "12px", color: "var(--danger)" }}>
+            <p style={{ fontSize: "12px", color: "var(--red-accent)", margin: "6px 0 0 0" }}>
               {error}
             </p>
           )}
