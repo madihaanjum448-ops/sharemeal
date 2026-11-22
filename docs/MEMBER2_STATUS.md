@@ -1,6 +1,6 @@
 # Member 2 status: matching, alerts and verification
 
-Offline test suite: 193 passed, 4 skipped.
+Offline test suite: 203 passed, 4 skipped.
 
 ## Built and tested offline
 - Tiered matching: nearest 5 within 3 km, 8 km after 5 min, everyone after 10 min.
