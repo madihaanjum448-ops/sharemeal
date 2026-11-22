@@ -1,6 +1,6 @@
-
 import { Outlet } from "react-router-dom";
 import Navbar from "../components/shared/Navbar";
+import Footer from "../components/shared/Footer";
 import "./DonorLayout.css";
 
 function DonorLayout() {
@@ -11,6 +11,8 @@ function DonorLayout() {
       <main className="donor-main">
         <Outlet />
       </main>
+
+      <Footer />
     </div>
   );
 }

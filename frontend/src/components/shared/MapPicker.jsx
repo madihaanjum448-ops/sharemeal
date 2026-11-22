@@ -52,7 +52,7 @@ function MapPicker({ initialPosition, onLocationSelect }) {
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState("");
 
-  const defaultCenter = [20.5937, 78.9629]; // India center
+  const defaultCenter = [20.5937, 78.9629]; // Default geographic center
   const center = position || defaultCenter;
   const initialZoom = position ? 13 : 5;
 
@@ -73,21 +73,23 @@ function MapPicker({ initialPosition, onLocationSelect }) {
         setPosition([lat, lng]);
         onLocationSelect({ latitude: lat, longitude: lng });
       },
-      (err) => {
+      (_err) => {
         setGeoLoading(false);
-        setGeoError("Unable to retrieve your location. Click directly on the map.");
+        setGeoError("Unable to detect location. Click directly on the map to pin.");
       },
       { timeout: 10000, enableHighAccuracy: true }
     );
   };
 
   return (
-    <div style={{ marginTop: "12px", marginBottom: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+    <div style={{ marginTop: "16px", marginBottom: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
         <div>
-          <label style={{ margin: 0, fontWeight: 600 }}>Pickup Location Pin</label>
+          <label style={{ margin: 0, fontWeight: 700, fontSize: "14px", color: "var(--emerald-900)" }}>
+            Pickup Location Pin *
+          </label>
           <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-            Click on map to drop precise pin
+            Click anywhere on the map to place your pickup pin
           </span>
         </div>
         <button
@@ -96,17 +98,17 @@ function MapPicker({ initialPosition, onLocationSelect }) {
           disabled={geoLoading}
           className="btn-secondary btn-sm"
         >
-          {geoLoading ? "Detecting..." : "Use Current Location"}
+          {geoLoading ? "Detecting GPS..." : "📍 Use Current Location"}
         </button>
       </div>
 
       {geoError && (
-        <p style={{ fontSize: "12px", color: "var(--danger)", margin: "0 0 8px 0" }}>
+        <div className="alert alert-danger" style={{ padding: "8px 12px", fontSize: "12px", marginBottom: "8px" }}>
           {geoError}
-        </p>
+        </div>
       )}
 
-      <div style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid var(--border)" }}>
+      <div style={{ borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
         <MapContainer
           center={center}
           zoom={initialZoom}
@@ -125,14 +127,15 @@ function MapPicker({ initialPosition, onLocationSelect }) {
         </MapContainer>
       </div>
 
-      <div style={{ marginTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ marginTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
         {position ? (
-          <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 600 }}>
-            Selected coordinates: {position[0].toFixed(5)}, {position[1].toFixed(5)}
+          <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+            <span>✓ Pin Selected:</span>
+            <span>{position[0].toFixed(5)}, {position[1].toFixed(5)}</span>
           </span>
         ) : (
-          <span style={{ fontSize: "12px", color: "var(--danger)" }}>
-            * Please place a pin on the map
+          <span style={{ fontSize: "12px", color: "var(--red-accent)", fontWeight: 500 }}>
+            * Please click on the map to pin pickup coordinates
           </span>
         )}
       </div>

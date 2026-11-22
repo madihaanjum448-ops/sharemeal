@@ -35,11 +35,13 @@ function HygieneChecklist({ onHygieneConfirmed }) {
   return (
     <div
       style={{
-        background: "#f9fafb",
-        border: "1px solid var(--border)",
-        borderRadius: "8px",
-        padding: "16px",
-        marginBottom: "20px",
+        background: isAllChecked ? "var(--emerald-50)" : "#ffffff",
+        border: isAllChecked ? "1px solid var(--emerald-200)" : "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        padding: "20px 22px",
+        marginBottom: "28px",
+        transition: "all 0.2s ease",
+        boxShadow: "var(--shadow-card)",
       }}
     >
       <div
@@ -47,18 +49,24 @@ function HygieneChecklist({ onHygieneConfirmed }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "12px",
+          marginBottom: "14px",
+          flexWrap: "wrap",
+          gap: "10px",
         }}
       >
-        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--text-main)" }}>
-          Food Hygiene & Safety Checklist
-        </h4>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "16px" }}>🛡️</span>
+          <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--emerald-900)" }}>
+            Food Hygiene &amp; Safety Protocol
+          </h4>
+        </div>
         <button
           type="button"
           onClick={handleCheckAll}
           className="btn-secondary btn-sm"
+          style={{ padding: "4px 10px", fontSize: "12px" }}
         >
-          {isAllChecked ? "Uncheck All" : "Check All"}
+          {isAllChecked ? "Uncheck All" : "Select All 4 Items"}
         </button>
       </div>
 
@@ -70,19 +78,27 @@ function HygieneChecklist({ onHygieneConfirmed }) {
               key={index}
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 gap: "10px",
                 margin: 0,
                 fontSize: "13px",
                 cursor: "pointer",
-                color: checked ? "var(--text-main)" : "var(--text-muted)",
+                color: checked ? "var(--emerald-900)" : "var(--text-muted)",
+                fontWeight: checked ? 600 : 400,
+                lineHeight: 1.4,
               }}
             >
               <input
                 type="checkbox"
                 checked={checked}
                 onChange={() => handleToggle(item)}
-                style={{ width: "16px", height: "16px", margin: 0, accentColor: "var(--primary)" }}
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  marginTop: "2px",
+                  accentColor: "var(--primary)",
+                  cursor: "pointer",
+                }}
               />
               <span>{item}</span>
             </label>
@@ -90,9 +106,13 @@ function HygieneChecklist({ onHygieneConfirmed }) {
         })}
       </div>
 
-      {!isAllChecked && (
-        <p style={{ margin: "10px 0 0 0", fontSize: "12px", color: "var(--warning)", fontWeight: 500 }}>
-          * All 4 hygiene safety items must be verified to donate food.
+      {!isAllChecked ? (
+        <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "var(--warning)", fontWeight: 600 }}>
+          ⚠️ All 4 hygiene safety criteria must be confirmed before posting.
+        </p>
+      ) : (
+        <p style={{ margin: "12px 0 0 0", fontSize: "12px", color: "var(--primary)", fontWeight: 700 }}>
+          ✓ All hygiene protocols verified. Ready to publish!
         </p>
       )}
     </div>
