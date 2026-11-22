@@ -18,6 +18,7 @@ from app.jobs.expiry_worker import run_expiry_and_timeout_sweep
 from app.listings.routes import router as listings_router
 from app.receivers.routes import router as receivers_router
 from app.alerts.routes import router as alerts_router
+from app.alerts.job import run_alert_cycle  # MEMBER2-HOOK
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sharemeal.api")
@@ -29,6 +30,11 @@ async def _expiry_loop():
             await asyncio.to_thread(run_expiry_and_timeout_sweep)
         except Exception:
             logger.exception("Scheduled expiry sweep failed")
+        # MEMBER2-HOOK: alert receivers about available listings. Never changes sweep behaviour.
+        try:
+            await asyncio.to_thread(run_alert_cycle, get_supabase())
+        except Exception:
+            logger.exception("Alert cycle failed")
         await asyncio.sleep(settings.EXPIRY_SWEEP_INTERVAL_SECONDS)
 
 
