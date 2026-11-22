@@ -46,3 +46,11 @@ Offline test suite: 203 passed, 4 skipped.
 - Part 3 SQL (docs/proposed_member2_migration_part3.sql): for review, NOT applied.
 - Seed script: scripts/seed_receiver_locations.py (dry run by default).
 - Still not built: web push, Telegram /start linking, /admin screen.
+
+## Correction after merging the integration branch
+- The pickup handshake and the no-show strikes are implemented by Member 1 on the
+  integration branch (routes /handshake/claims/{id}/code and /verify, migrations
+  202611120006, 202611120007, 202611190001). Member 2's earlier versions were dropped
+  in the merge, and docs/proposed_member2_migration*.sql are superseded.
+- Member 2 owns: tiered matching, receiver location API, alert job, in-app alerts
+  (GET /receivers/me/alerts), Telegram sender, and the part 3 alert tables SQL.
