@@ -1,13 +1,15 @@
-﻿import logging
+
+import logging
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 
-from app.core.auth import get_current_verified_receiver
+from app.core.auth import get_current_donor, get_current_verified_receiver
 from app.core.config import settings
 from app.core.supabase_client import get_supabase
+from app.handshake.routes import VerifyCodeRequest, get_pickup_code, verify_pickup_code
 from app.handshake.service import derive_code, hash_code
 
 logger = logging.getLogger(__name__)
@@ -28,16 +30,19 @@ def create_claim(
     client = get_supabase()
 
     try:
-        claim_id = uuid4()
-        claim_id_str = str(claim_id)
+        # Generate the claim ID before calling Supabase.
+        claim_id = str(uuid4())
 
+        # Generate the donor's pickup code.
         pickup_code = derive_code(
-            claim_id_str,
+            claim_id,
             settings.HANDSHAKE_SECRET,
         )
+
+        # Store only the keyed hash in the database.
         handshake_code_hash = hash_code(
             pickup_code,
-            claim_id_str,
+            claim_id,
             settings.HANDSHAKE_SECRET,
         )
 
@@ -46,7 +51,7 @@ def create_claim(
             {
                 "p_listing_id": str(request.listing_id),
                 "p_receiver_id": user["id"],
-                "p_claim_id": claim_id_str,
+                "p_claim_id": claim_id,
                 "p_handshake_code_hash": handshake_code_hash,
             },
         ).execute()
@@ -107,6 +112,7 @@ def create_claim(
                 detail="Listing cannot be claimed in its current state",
             )
 
+        # Never expose the pickup code or its hash to the receiver.
         return {
             "message": "Food listing claimed successfully",
             "claim": data,
@@ -261,3 +267,24 @@ def cancel_claim(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Claim service temporarily unavailable",
         )
+
+
+@router.post("/{claim_id}/verify", status_code=status.HTTP_200_OK)
+@router.post("/{claim_id}/verify-pickup", status_code=status.HTTP_200_OK)
+def verify_claim_pickup_alias(
+    claim_id: UUID,
+    request: VerifyCodeRequest,
+    user=Depends(get_current_verified_receiver),
+):
+    """Compatibility alias for POST /handshake/claims/{claim_id}/verify."""
+    return verify_pickup_code(claim_id=claim_id, request=request, receiver=user)
+
+
+@router.get("/{claim_id}/code", status_code=status.HTTP_200_OK)
+def get_claim_code_alias(
+    claim_id: UUID,
+    response: Response,
+    donor=Depends(get_current_donor),
+):
+    """Compatibility alias for GET /handshake/claims/{claim_id}/code."""
+    return get_pickup_code(claim_id=claim_id, response=response, donor=donor)

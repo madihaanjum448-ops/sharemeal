@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+.pytest_cache/
+*.log
+.coverage
+htmlcov/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+.env.*
+!.env.example

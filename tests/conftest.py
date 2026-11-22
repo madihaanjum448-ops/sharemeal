@@ -15,7 +15,7 @@ import pytest
 os.environ["SUPABASE_URL"] = "https://example.supabase.co"
 os.environ["SUPABASE_KEY"] = "test-service-role-key"
 os.environ["SUPABASE_ANON_KEY"] = "test-anon-key"
-os.environ["HANDSHAKE_SECRET"] = "test-only-handshake-secret"
+os.environ["HANDSHAKE_SECRET"] = "test-only-handshake-secret-32chars"
 os.environ["EXPIRY_SWEEP_INTERVAL_SECONDS"] = "60"
 os.environ["APP_ENV"] = "test"
 

@@ -1,4 +1,4 @@
-﻿from unittest.mock import MagicMock, patch
+﻿from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -11,18 +11,22 @@ def test_expiry_worker_calls_correct_rpc_and_returns_result():
         "reopened_listings": 1,
         "expired_listings": 0,
     }
-    mock_response = MagicMock()
-    mock_response.data = expected
+    sweep_response = MagicMock()
+    sweep_response.data = expected
+    strike_response = MagicMock()
+    strike_response.data = {"strikes_added": 2}
 
     mock_db = MagicMock()
-    mock_db.rpc.return_value.execute.return_value = mock_response
+    mock_db.rpc.return_value.execute.side_effect = [sweep_response, strike_response]
 
     with patch("app.jobs.expiry_worker.get_supabase", return_value=mock_db):
         result = run_expiry_and_timeout_sweep()
 
-    mock_db.rpc.assert_called_once_with(
-        "process_expired_claims_and_listings", {}
-    )
+    # Sweep first, then timeout strikes; the returned value is still the sweep result, unchanged.
+    assert mock_db.rpc.call_args_list == [
+        call("process_expired_claims_and_listings", {}),
+        call("apply_timeout_strikes", {}),
+    ]
     assert result == expected
 
 

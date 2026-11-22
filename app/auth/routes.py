@@ -14,6 +14,33 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 logger = logging.getLogger("sharemeal.auth")
 
 
+def find_auth_user_by_email(client, email: str):
+    """
+    Find an existing Supabase Auth user by email using the
+    server-side Admin API.
+    """
+    page = 1
+    per_page = 100
+
+    while True:
+        users = client.auth.admin.list_users(
+            page=page,
+            per_page=per_page,
+            )
+        users = users or []
+
+        for auth_user in users:
+            auth_email = (getattr(auth_user, "email", None) or "").strip().lower()
+
+            if auth_email == email:
+                return auth_user
+
+        if len(users) < per_page:
+            return None
+
+        page += 1
+
+
 @router.post("/send-otp")
 def send_otp(request: SendOTPRequest, http_request: Request):
     email = request.email.strip().lower()
@@ -26,21 +53,46 @@ def send_otp(request: SendOTPRequest, http_request: Request):
     )
 
     try:
+        client = get_supabase()
+
+        # Check whether this email already has a Supabase Auth account.
+        auth_user = find_auth_user_by_email(client, email)
+
+        is_new_user = True
+
+        if auth_user:
+            # An Auth account may exist without a completed profile.
+            # The frontend should treat that user as new.
+            existing_profile = (
+                client.table("user_profiles")
+                .select("id")
+                .eq("id", str(auth_user.id))
+                .limit(1)
+                .execute()
+            )
+
+            is_new_user = not bool(existing_profile.data)
+
+        # Send OTP after checking the account and profile.
         auth_supabase.auth.sign_in_with_otp({
             "email": email,
             "options": {"should_create_user": True},
         })
-        return {"message": "Verification code sent. Please check your email."}
+
+        return {
+            "message": "Verification code sent. Please check your email.",
+            "is_new_user": is_new_user,
+        }
 
     except Exception as exc:
         logger.exception(
-            "Supabase OTP delivery failed: %s",
+            "Supabase OTP delivery or account lookup failed: %s",
             type(exc).__name__,
-            )
+        )
         raise HTTPException(
             status_code=503,
-            detail="Could not send verification code. Please try again later."
-            )
+            detail="Could not send verification code. Please try again later.",
+        )
 
 
 @router.post("/verify-otp")
@@ -165,6 +217,7 @@ def get_current_user_profile(user=Depends(get_current_user)):
     """Return the authenticated user's profile information."""
     try:
         client = get_supabase()
+
         res = (
             client.table("user_profiles")
             .select(
@@ -175,11 +228,13 @@ def get_current_user_profile(user=Depends(get_current_user)):
             .limit(1)
             .execute()
         )
+
         if not res.data:
             raise HTTPException(
                 status_code=404,
                 detail="User profile not found",
             )
+
         profile = res.data[0]
         email = user.get("email")
 
@@ -193,15 +248,20 @@ def get_current_user_profile(user=Depends(get_current_user)):
             "approval_status": profile.get("approval_status"),
             "created_at": profile.get("created_at"),
         }
+
         return {
             **user_data,
             "user": user_data,
             "profile": user_data,
         }
+
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Failed to retrieve user profile: %s", type(exc).__name__)
+        logger.exception(
+            "Failed to retrieve user profile: %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=503,
             detail="Could not retrieve user profile",
@@ -214,6 +274,7 @@ def refresh_token(request: RefreshTokenRequest):
     try:
         token = request.refresh_token.strip()
         refresh_res = auth_supabase.auth.refresh_session(token)
+
         session = getattr(refresh_res, "session", None)
         user = getattr(refresh_res, "user", None)
 
@@ -232,12 +293,16 @@ def refresh_token(request: RefreshTokenRequest):
             "user": {
                 "id": user.id if user else None,
                 "email": getattr(user, "email", None),
-                },
-                }
+            },
+        }
+
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("Token refresh failed: %s", type(exc).__name__)
+        logger.exception(
+            "Token refresh failed: %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired refresh token",

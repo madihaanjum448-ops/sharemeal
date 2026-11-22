@@ -164,11 +164,19 @@ def test_send_otp_success():
     req = SendOTPRequest(email="donor@example.com")
     mock_http_req = MagicMock()
     mock_http_req.client.host = "127.0.0.1"
-    with patch("app.auth.routes.auth_supabase") as mock_auth, \
+
+    with patch("app.auth.routes.get_supabase") as mock_supabase, \
+         patch("app.auth.routes.find_auth_user_by_email", return_value=None), \
+         patch("app.auth.routes.auth_supabase") as mock_auth, \
          patch("app.auth.routes.enforce_otp_send_limit"):
+
+        mock_supabase.return_value = MagicMock()
         mock_auth.auth.sign_in_with_otp.return_value = None
+
         res = send_otp(req, mock_http_req)
+
         assert "Verification code sent" in res["message"]
+        assert res["is_new_user"] is True
 
 
 def test_send_otp_supabase_failure():

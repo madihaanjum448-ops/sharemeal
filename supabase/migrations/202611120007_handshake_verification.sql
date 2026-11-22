@@ -1,4 +1,4 @@
-﻿BEGIN;
+BEGIN;
 
 -- =========================================================
 -- 1. Atomic pickup verification
@@ -125,15 +125,6 @@ BEGIN
         );
     END IF;
 
-    -- Enforce the five-attempt limit.
-    IF v_handshake.attempts >= 5 THEN
-        RETURN jsonb_build_object(
-            'success', false,
-            'code', 'LOCKED',
-            'attempts', v_handshake.attempts
-        );
-    END IF;
-
     -- Check both claim expiry and food safety expiry.
     IF v_claim.expires_at <= v_now
        OR v_listing.safe_until <= v_now THEN
@@ -157,6 +148,15 @@ BEGIN
         RETURN jsonb_build_object(
             'success', false,
             'code', 'EXPIRED'
+        );
+    END IF;
+
+    -- Enforce the five-attempt limit.
+    IF v_handshake.attempts >= 5 THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'code', 'LOCKED',
+            'attempts', v_handshake.attempts
         );
     END IF;
 

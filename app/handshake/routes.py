@@ -1,10 +1,11 @@
-﻿"""Pickup handshake API routes."""
+﻿
+"""Pickup handshake API routes."""
 
 import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from app.core.auth import get_current_donor, get_current_verified_receiver
@@ -47,9 +48,14 @@ def _rpc_result(data):
 @router.get("/claims/{claim_id}/code")
 def get_pickup_code(
     claim_id: UUID,
+    response: Response,
     donor=Depends(get_current_donor),
 ):
     """Return the pickup code only to the donor who owns the listing."""
+
+    # Prevent browsers and intermediaries from caching pickup codes.
+    response.headers["Cache-Control"] = "no-store"
+
     client = get_supabase()
 
     try:
