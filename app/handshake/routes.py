@@ -19,7 +19,7 @@ router = APIRouter(prefix="/handshake", tags=["Pickup Handshake"])
 
 
 class VerifyCodeRequest(BaseModel):
-    code: str = Field(pattern=r"^\d{4}$")
+    code: str = Field(pattern=r"^[0-9]{4}$")
 
 
 def _parse_datetime(value):
