@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
+
 import { useAuth } from "../../context/AuthContext";
+import { getPickupCode } from "../../services/claimService";
 
 function toLocalDateTime(value) {
   if (!value) return "";
@@ -24,6 +26,9 @@ function MyPosts() {
   const [editingId, setEditingId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [editData, setEditData] = useState({});
+  const [pickupCodes, setPickupCodes] = useState({});
+const [pickupCodeLoading, setPickupCodeLoading] = useState(null);
+const [pickupCodeErrors, setPickupCodeErrors] = useState({});
 
   const fetchListings = useCallback(async () => {
     try {
@@ -38,6 +43,30 @@ function MyPosts() {
       setLoading(false);
     }
   }, [authFetch]);
+  const handleShowPickupCode = async (listingId, claimId) => {
+  try {
+    setPickupCodeLoading(listingId);
+
+    setPickupCodeErrors((prev) => ({
+      ...prev,
+      [listingId]: "",
+    }));
+
+    const data = await getPickupCode(claimId, authFetch);
+
+    setPickupCodes((prev) => ({
+      ...prev,
+      [listingId]: data.pickup_code,
+    }));
+  } catch (err) {
+    setPickupCodeErrors((prev) => ({
+      ...prev,
+      [listingId]: err.message || "Could not retrieve pickup code.",
+    }));
+  } finally {
+    setPickupCodeLoading(null);
+  }
+};
 
   useEffect(() => {
     fetchListings();
@@ -338,7 +367,28 @@ function MyPosts() {
                     </div>
                   </div>
                 </div>
+                {pickupCodes[item.id] && (
+  <div
+    style={{
+      marginTop: "16px",
+      padding: "16px",
+      background: "var(--emerald-50)",
+      border: "1px solid var(--emerald-200)",
+      borderRadius: "var(--radius-md)",
+    }}
+  >
+    <strong>Receiver Pickup Code</strong>
+    <div style={{ fontSize: "28px", fontWeight: 800, letterSpacing: "6px" }}>
+      {pickupCodes[item.id]}
+    </div>
+  </div>
+)}
 
+{pickupCodeErrors[item.id] && (
+  <p style={{ color: "var(--red-accent)", fontSize: "13px" }}>
+    {pickupCodeErrors[item.id]}
+  </p>
+)}
                 {/* Inline Edit Donation Mode */}
                 {isEditing && (
                   <div
@@ -467,7 +517,20 @@ function MyPosts() {
                   }}
                 >
                   <div style={{ display: "flex", gap: "8px" }}>
+                                          {item.claim_id && !isEditing && (
+  <button
+    type="button"
+    className="btn btn-sm"
+    onClick={() => handleShowPickupCode(item.id, item.claim_id)}
+    disabled={pickupCodeLoading === item.id}
+  >
+    {pickupCodeLoading === item.id
+      ? "Loading Code..."
+      : "Show Pickup Code"}
+  </button>
+    )}
                     {item.status === "available" && !expired && !isEditing && (
+
                       <button
                         type="button"
                         onClick={() => handleEdit(item)}

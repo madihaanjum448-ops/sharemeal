@@ -25,6 +25,7 @@ function DonorPostForm() {
 
   const [hygieneConfirmed, setHygieneConfirmed] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -271,10 +272,16 @@ function DonorPostForm() {
           />
 
           <PhotoUpload
-            previewUrl={photoPreview}
-            onPhotoSelect={(_file, url) => setPhotoPreview(url)}
-            onPhotoClear={() => setPhotoPreview(null)}
-          />
+  previewUrl={photoPreview}
+  onPhotoSelect={(file, url) => {
+    setSelectedPhoto(file);
+    setPhotoPreview(url);
+  }}
+  onPhotoClear={() => {
+    setSelectedPhoto(null);
+    setPhotoPreview(null);
+  }}
+/>
         </div>
 
         {/* Section 4: Safety & Confirmation */}

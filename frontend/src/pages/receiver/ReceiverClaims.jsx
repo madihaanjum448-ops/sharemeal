@@ -10,6 +10,9 @@ function ReceiverClaims() {
   const [cancellingId, setCancellingId] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [pickupCodes, setPickupCodes] = useState({});
+const [verifyingId, setVerifyingId] = useState(null);
+const [verificationMessages, setVerificationMessages] = useState({});
 
   const fetchClaims = useCallback(async () => {
     try {
@@ -58,7 +61,68 @@ function ReceiverClaims() {
       setCancellingId(null);
     }
   };
+  const handleVerifyPickup = async (claimId) => {
+  const code = pickupCodes[claimId] || "";
 
+  if (!/^\d{4}$/.test(code)) {
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: "Please enter a valid 4-digit pickup code.",
+    }));
+    return;
+  }
+
+  try {
+    setVerifyingId(claimId);
+
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: "",
+    }));
+
+    const data = await authFetch(
+      `/handshake/claims/${claimId}/verify`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code }),
+      }
+    );
+
+    setClaims((prev) =>
+      prev.map((item) =>
+        item.claim.id === claimId
+          ? {
+              ...item,
+              claim: {
+                ...item.claim,
+                status: "completed",
+              },
+            }
+          : item
+      )
+    );
+
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: data.message || "Pickup verified successfully!",
+    }));
+
+    setPickupCodes((prev) => ({
+      ...prev,
+      [claimId]: "",
+    }));
+  } catch (err) {
+    setVerificationMessages((prev) => ({
+      ...prev,
+      [claimId]: err.message || "Pickup verification failed.",
+    }));
+  } finally {
+    setVerifyingId(null);
+  }
+};
   const formatDateTime = (isoString) => {
     if (!isoString) return "N/A";
     try {
@@ -285,8 +349,69 @@ function ReceiverClaims() {
                     {statusDisplay === "expired"
                       ? "⚠️ This claim window has expired. Pickup details are no longer active."
                       : "Pickup details are only unlocked for active, unexpired food claims."}
-                  </div>
+                                    </div>
                 )}
+
+                {(statusDisplay === "active" && !expired) ||
+  verificationMessages[claim.id]?.includes("successfully") ? (
+                  <div
+                    style={{
+                      marginTop: "20px",
+                      padding: "20px",
+                      background: "var(--bg-cream)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                    }}
+                  >
+                    <h4 style={{ marginTop: 0, color: "var(--emerald-900)" }}>
+                      Verify Food Pickup
+                    </h4>
+
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                      Enter the 4-digit pickup code provided by the donor.
+                    </p>
+
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="Enter 4-digit code"
+                      value={pickupCodes[claim.id] || ""}
+                      onChange={(e) =>
+                        setPickupCodes((prev) => ({
+                          ...prev,
+                          [claim.id]: e.target.value.replace(/\D/g, "").slice(0, 4),
+                        }))
+                      }
+                      disabled={verifyingId === claim.id}
+                    />
+
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => handleVerifyPickup(claim.id)}
+                      disabled={verifyingId === claim.id}
+                    >
+                      {verifyingId === claim.id
+                        ? "Verifying..."
+                        : "Verify Pickup"}
+                    </button>
+
+                    {verificationMessages[claim.id] && (
+                      <p
+                        style={{
+                          marginTop: "10px",
+                          fontSize: "13px",
+                          color: verificationMessages[claim.id].includes("successfully")
+                            ? "var(--primary)"
+                            : "var(--red-accent)",
+                        }}
+                      >
+                        {verificationMessages[claim.id]}
+                      </p>
+                    )}
+                                    </div>
+                ) : null}
               </div>
             );
           })}
